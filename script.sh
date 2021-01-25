@@ -48,7 +48,7 @@ if [ ! -f $PWD/src/parser.c ];then
     echo "###|"
     exit 1
 fi
-gcc $PWD/src/parser.c -o $PWD/parseroom/parser
+gcc $PWD/src/parser.c -o $PWD/parseroom/parser -lm
 
 # parse
 printf "###| [INFO] parsing.."

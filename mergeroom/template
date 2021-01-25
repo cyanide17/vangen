@@ -32,19 +32,19 @@ struct dev_cfg{
 };
 
 struct dev{
-        struct list_head    node;
         struct dev_cfg      cfg;
+        struct list_head    node;
 };
 
 typedef struct _DMA_block
 {
         void *cpu_addr;
         unsigned int log_addr;
-        dma_addr_t bus_addr;
+        dma_addr_t dma_handle;
         struct list_head node;
 }DMA_blk;
 
-int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t bus_addr)
+int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t dma_handle)
 {
         DMA_blk *new_blk = (DMA_blk *)kzalloc(sizeof(DMA_blk), GFP_KERNEL);
         if(!new_blk){
@@ -53,7 +53,7 @@ int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t bus_addr)
         }
         new_blk->cpu_addr = cpu_addr;
         new_blk->log_addr = log_addr;
-        new_blk->bus_addr = bus_addr;
+        new_blk->dma_handle = dma_handle;
 
         INIT_LIST_HEAD(&new_blk->node);
         list_add_tail(&new_blk->node, &DMA_blks_head);
@@ -68,6 +68,18 @@ void print_DMA_blks(void)
         list_for_each_entry(blk, &DMA_blks_head, node) {
                 printk(KERN_INFO "0x%x\n",blk->log_addr);
         }
+}
+
+DMA_blk *get_DMA_blk(unsigned int log_addr)
+{
+        DMA_blk *blk;
+        list_for_each_entry(blk, &DMA_blks_head, node) {
+                if(blk->log_addr == log_addr)
+                {
+                        return blk;
+                }
+        }
+        return NULL;
 }
 
 struct dev* check_dev_list(unsigned int vendor, unsigned int device)
@@ -271,34 +283,29 @@ void print_IF(void)
         printk("###| [%s] IF:%d\n",__FUNCTION__,IF);
 }
 
+struct dev* load_bar(unsigned int vendor, unsigned int device){
+        struct dev *dev = check_dev_list(vendor,device);
+        if(dev==NULL){
+                printk(KERN_ERR "[ERR ] load_bar tried for not existing device\n");
+        }
+        return dev;
+}
+
 int repro(void)
 {
+        printk(KERN_INFO "[%s] REPRO START\n",__FUNCTION__);
         void __iomem* bar_addr[6];
         struct dev *dev;
-        unsigned int vendor;
-        unsigned int device;
-        vendor = -1;
-        device = -1;
-        /*
-         * vendor = ~
-         * device = ~
-         */
+
+        void *cpu_addr;
+        dma_addr_t dma_handle;
+        struct pci_dev *pdev;
+        DMA_blk *blk;
+
         // @
 
-        if((vendor!=-1)&&(device!=-1)){
-                dev = check_dev_list(vendor,device);
-                if(dev==NULL){
-                        return 1;
-                        printk(KERN_ERR "[ERR ] no device\n");
-                }
-                memcpy(bar_addr,dev->cfg.virtBAR,sizeof(bar_addr));
-        }
 
-        /*
-         * in, out operations
-         */
-        // @
-
+        printk(KERN_INFO "[%s] REPRO END\n",__FUNCTION__);
         return 0;
 }
 
@@ -371,20 +378,12 @@ int suppress_drivers(void)
 
 static int __init init_mymod(void)
 {
-        printk(KERN_ALERT "###| [INFO] mymod inserted!\n");
+        printk(KERN_ALERT "###| [%s] mymod inserted!\n",__FUNCTION__);
 
-        add_DMA_blk(0,0x1111,0);
-        add_DMA_blk(0,0x2222,0);
-        add_DMA_blk(0,0x3333,0);
-
-        print_DMA_blks();
-
-        /*
         enum_dev();
         suppress_drivers();
         repro();
         native_irq_enable();
-         * */
 
         return 0;
 }
@@ -392,7 +391,7 @@ static int __init init_mymod(void)
 static void __exit exit_mymod(void)
 {
         remove_dev_list();
-        printk(KERN_ALERT "mymod exited!\n");
+        printk(KERN_ALERT "###| [%s] mymod exited!\n",__FUNCTION__);
 }
 
 module_init(init_mymod);

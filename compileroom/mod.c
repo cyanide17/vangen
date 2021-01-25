@@ -32,19 +32,19 @@ struct dev_cfg{
 };
 
 struct dev{
-        struct list_head    node;
         struct dev_cfg      cfg;
+        struct list_head    node;
 };
 
 typedef struct _DMA_block
 {
         void *cpu_addr;
         unsigned int log_addr;
-        dma_addr_t bus_addr;
+        dma_addr_t dma_handle;
         struct list_head node;
 }DMA_blk;
 
-int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t bus_addr)
+int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t dma_handle)
 {
         DMA_blk *new_blk = (DMA_blk *)kzalloc(sizeof(DMA_blk), GFP_KERNEL);
         if(!new_blk){
@@ -53,7 +53,7 @@ int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t bus_addr)
         }
         new_blk->cpu_addr = cpu_addr;
         new_blk->log_addr = log_addr;
-        new_blk->bus_addr = bus_addr;
+        new_blk->dma_handle = dma_handle;
 
         INIT_LIST_HEAD(&new_blk->node);
         list_add_tail(&new_blk->node, &DMA_blks_head);
@@ -68,6 +68,18 @@ void print_DMA_blks(void)
         list_for_each_entry(blk, &DMA_blks_head, node) {
                 printk(KERN_INFO "0x%x\n",blk->log_addr);
         }
+}
+
+DMA_blk *get_DMA_blk(unsigned int log_addr)
+{
+        DMA_blk *blk;
+        list_for_each_entry(blk, &DMA_blks_head, node) {
+                if(blk->log_addr == log_addr)
+                {
+                        return blk;
+                }
+        }
+        return NULL;
 }
 
 struct dev* check_dev_list(unsigned int vendor, unsigned int device)
@@ -271,3029 +283,992 @@ void print_IF(void)
         printk("###| [%s] IF:%d\n",__FUNCTION__,IF);
 }
 
+struct dev* load_bar(unsigned int vendor, unsigned int device){
+        struct dev *dev = check_dev_list(vendor,device);
+        if(dev==NULL){
+                printk(KERN_ERR "[ERR ] load_bar tried for not existing device\n");
+        }
+        return dev;
+}
+
 int repro(void)
 {
+        printk(KERN_INFO "[%s] REPRO START\n",__FUNCTION__);
         void __iomem* bar_addr[6];
         struct dev *dev;
-        unsigned int vendor;
-        unsigned int device;
-        vendor = -1;
-        device = -1;
-        /*
-         * vendor = ~
-         * device = ~
-         */
+
+        void *cpu_addr;
+        dma_addr_t dma_handle;
+        struct pci_dev *pdev;
+        DMA_blk *blk;
+
         // 
-vendor = 0x8086;
-device = 0x10d3;
-
-
-        if((vendor!=-1)&&(device!=-1)){
-                dev = check_dev_list(vendor,device);
-                if(dev==NULL){
-                        return 1;
-                        printk(KERN_ERR "[ERR ] no device\n");
-                }
-                memcpy(bar_addr,dev->cfg.virtBAR,sizeof(bar_addr));
-        }
-
-        /*
-         * in, out operations
-         */
-        // 
-writel(0x4380000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-writel(0x21, bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-
-writel(0x25, bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0x18);
-
-writel(0x10400000, bar_addr[0]+0x18);
-writel(0x20, bar_addr[0]+0x1000);
-readl(bar_addr[0]+0x1000);
-readl(bar_addr[0]+0x0);
-
-writel(0x18140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0x8);
-
-writel(0xffffffff, bar_addr[0]+0xd8);
-writel(0x0, bar_addr[0]+0x100);
-readl(bar_addr[0]+0x400);
-
-writel(0x0, bar_addr[0]+0x400);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x0);
-
-writel(0x1c140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x10);
-
-writel(0xffffffff, bar_addr[0]+0xd8);
-readl(bar_addr[0]+0xc0);
-readl(bar_addr[0]+0x18);
-
-writel(0x10400000, bar_addr[0]+0x18);
-writel(0x0, bar_addr[0]+0x5800);
-readl(bar_addr[0]+0x3828);
-
-writel(0x1410000, bar_addr[0]+0x3828);
-readl(bar_addr[0]+0x3928);
-
-writel(0x400000, bar_addr[0]+0x3928);
-readl(bar_addr[0]+0x3840);
-
-writel(0x4000403, bar_addr[0]+0x3840);
-readl(bar_addr[0]+0x3940);
-readl(bar_addr[0]+0x0);
-
-writel(0x18140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0x18);
-
-writel(0x10400000, bar_addr[0]+0x18);
-readl(bar_addr[0]+0x5b00);
-
-writel(0xec00200, bar_addr[0]+0x5b00);
-readl(bar_addr[0]+0x5b64);
-
-writel(0x1, bar_addr[0]+0x5b64);
-writel(0x11, bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0xe00);
-
-writel(0x0, bar_addr[0]+0x5600);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5604);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5608);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x560c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5610);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5614);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5618);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x561c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5620);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5624);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5628);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x562c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5630);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5634);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5638);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x563c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5640);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5644);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5648);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x564c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5650);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5654);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5658);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x565c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5660);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5664);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5668);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x566c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5670);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5674);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5678);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x567c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5680);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5684);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5688);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x568c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5690);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5694);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5698);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x569c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56a0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56a4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56a8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56ac);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56b0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56b4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56b8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56bc);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56c0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56c4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56c8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56cc);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56d0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56d4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56d8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56dc);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56e0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56e4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56e8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56ec);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56f0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56f4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56f8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x56fc);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5700);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5704);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5708);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x570c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5710);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5714);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5718);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x571c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5720);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5724);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5728);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x572c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5730);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5734);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5738);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x573c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5740);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5744);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5748);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x574c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5750);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5754);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5758);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x575c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5760);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5764);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5768);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x576c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5770);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5774);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5778);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x577c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5780);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5784);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5788);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x578c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5790);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5794);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5798);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x579c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57a0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57a4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57a8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57ac);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57b0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57b4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57b8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57bc);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57c0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57c4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57c8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57cc);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57d0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57d4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57d8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57dc);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57e0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57e4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57e8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57ec);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57f0);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57f4);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57f8);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x57fc);
-readl(bar_addr[0]+0x8);
-
-writel(0x12005452, bar_addr[0]+0x5400);
-readl(bar_addr[0]+0x8);
-
-writel(0x80005634, bar_addr[0]+0x5404);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5408);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x540c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5410);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5414);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5418);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x541c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5420);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5424);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5428);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x542c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5430);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5434);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5438);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x543c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5440);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5444);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5448);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x544c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5450);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5454);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5458);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x545c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5460);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5464);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5468);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x546c);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5470);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5474);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x5200);
-writel(0x0, bar_addr[0]+0x5204);
-writel(0x0, bar_addr[0]+0x5208);
-writel(0x0, bar_addr[0]+0x520c);
-writel(0x0, bar_addr[0]+0x5210);
-writel(0x0, bar_addr[0]+0x5214);
-writel(0x0, bar_addr[0]+0x5218);
-writel(0x0, bar_addr[0]+0x521c);
-writel(0x0, bar_addr[0]+0x5220);
-writel(0x0, bar_addr[0]+0x5224);
-writel(0x0, bar_addr[0]+0x5228);
-writel(0x0, bar_addr[0]+0x522c);
-writel(0x0, bar_addr[0]+0x5230);
-writel(0x0, bar_addr[0]+0x5234);
-writel(0x0, bar_addr[0]+0x5238);
-writel(0x0, bar_addr[0]+0x523c);
-writel(0x0, bar_addr[0]+0x5240);
-writel(0x0, bar_addr[0]+0x5244);
-writel(0x0, bar_addr[0]+0x5248);
-writel(0x0, bar_addr[0]+0x524c);
-writel(0x0, bar_addr[0]+0x5250);
-writel(0x0, bar_addr[0]+0x5254);
-writel(0x0, bar_addr[0]+0x5258);
-writel(0x0, bar_addr[0]+0x525c);
-writel(0x0, bar_addr[0]+0x5260);
-writel(0x0, bar_addr[0]+0x5264);
-writel(0x0, bar_addr[0]+0x5268);
-writel(0x0, bar_addr[0]+0x526c);
-writel(0x0, bar_addr[0]+0x5270);
-writel(0x0, bar_addr[0]+0x5274);
-writel(0x0, bar_addr[0]+0x5278);
-writel(0x0, bar_addr[0]+0x527c);
-writel(0x0, bar_addr[0]+0x5280);
-writel(0x0, bar_addr[0]+0x5284);
-writel(0x0, bar_addr[0]+0x5288);
-writel(0x0, bar_addr[0]+0x528c);
-writel(0x0, bar_addr[0]+0x5290);
-writel(0x0, bar_addr[0]+0x5294);
-writel(0x0, bar_addr[0]+0x5298);
-writel(0x0, bar_addr[0]+0x529c);
-writel(0x0, bar_addr[0]+0x52a0);
-writel(0x0, bar_addr[0]+0x52a4);
-writel(0x0, bar_addr[0]+0x52a8);
-writel(0x0, bar_addr[0]+0x52ac);
-writel(0x0, bar_addr[0]+0x52b0);
-writel(0x0, bar_addr[0]+0x52b4);
-writel(0x0, bar_addr[0]+0x52b8);
-writel(0x0, bar_addr[0]+0x52bc);
-writel(0x0, bar_addr[0]+0x52c0);
-writel(0x0, bar_addr[0]+0x52c4);
-writel(0x0, bar_addr[0]+0x52c8);
-writel(0x0, bar_addr[0]+0x52cc);
-writel(0x0, bar_addr[0]+0x52d0);
-writel(0x0, bar_addr[0]+0x52d4);
-writel(0x0, bar_addr[0]+0x52d8);
-writel(0x0, bar_addr[0]+0x52dc);
-writel(0x0, bar_addr[0]+0x52e0);
-writel(0x0, bar_addr[0]+0x52e4);
-writel(0x0, bar_addr[0]+0x52e8);
-writel(0x0, bar_addr[0]+0x52ec);
-writel(0x0, bar_addr[0]+0x52f0);
-writel(0x0, bar_addr[0]+0x52f4);
-writel(0x0, bar_addr[0]+0x52f8);
-writel(0x0, bar_addr[0]+0x52fc);
-writel(0x0, bar_addr[0]+0x5300);
-writel(0x0, bar_addr[0]+0x5304);
-writel(0x0, bar_addr[0]+0x5308);
-writel(0x0, bar_addr[0]+0x530c);
-writel(0x0, bar_addr[0]+0x5310);
-writel(0x0, bar_addr[0]+0x5314);
-writel(0x0, bar_addr[0]+0x5318);
-writel(0x0, bar_addr[0]+0x531c);
-writel(0x0, bar_addr[0]+0x5320);
-writel(0x0, bar_addr[0]+0x5324);
-writel(0x0, bar_addr[0]+0x5328);
-writel(0x0, bar_addr[0]+0x532c);
-writel(0x0, bar_addr[0]+0x5330);
-writel(0x0, bar_addr[0]+0x5334);
-writel(0x0, bar_addr[0]+0x5338);
-writel(0x0, bar_addr[0]+0x533c);
-writel(0x0, bar_addr[0]+0x5340);
-writel(0x0, bar_addr[0]+0x5344);
-writel(0x0, bar_addr[0]+0x5348);
-writel(0x0, bar_addr[0]+0x534c);
-writel(0x0, bar_addr[0]+0x5350);
-writel(0x0, bar_addr[0]+0x5354);
-writel(0x0, bar_addr[0]+0x5358);
-writel(0x0, bar_addr[0]+0x535c);
-writel(0x0, bar_addr[0]+0x5360);
-writel(0x0, bar_addr[0]+0x5364);
-writel(0x0, bar_addr[0]+0x5368);
-writel(0x0, bar_addr[0]+0x536c);
-writel(0x0, bar_addr[0]+0x5370);
-writel(0x0, bar_addr[0]+0x5374);
-writel(0x0, bar_addr[0]+0x5378);
-writel(0x0, bar_addr[0]+0x537c);
-writel(0x0, bar_addr[0]+0x5380);
-writel(0x0, bar_addr[0]+0x5384);
-writel(0x0, bar_addr[0]+0x5388);
-writel(0x0, bar_addr[0]+0x538c);
-writel(0x0, bar_addr[0]+0x5390);
-writel(0x0, bar_addr[0]+0x5394);
-writel(0x0, bar_addr[0]+0x5398);
-writel(0x0, bar_addr[0]+0x539c);
-writel(0x0, bar_addr[0]+0x53a0);
-writel(0x0, bar_addr[0]+0x53a4);
-writel(0x0, bar_addr[0]+0x53a8);
-writel(0x0, bar_addr[0]+0x53ac);
-writel(0x0, bar_addr[0]+0x53b0);
-writel(0x0, bar_addr[0]+0x53b4);
-writel(0x0, bar_addr[0]+0x53b8);
-writel(0x0, bar_addr[0]+0x53bc);
-writel(0x0, bar_addr[0]+0x53c0);
-writel(0x0, bar_addr[0]+0x53c4);
-writel(0x0, bar_addr[0]+0x53c8);
-writel(0x0, bar_addr[0]+0x53cc);
-writel(0x0, bar_addr[0]+0x53d0);
-writel(0x0, bar_addr[0]+0x53d4);
-writel(0x0, bar_addr[0]+0x53d8);
-writel(0x0, bar_addr[0]+0x53dc);
-writel(0x0, bar_addr[0]+0x53e0);
-writel(0x0, bar_addr[0]+0x53e4);
-writel(0x0, bar_addr[0]+0x53e8);
-writel(0x0, bar_addr[0]+0x53ec);
-writel(0x0, bar_addr[0]+0x53f0);
-writel(0x0, bar_addr[0]+0x53f4);
-writel(0x0, bar_addr[0]+0x53f8);
-writel(0x0, bar_addr[0]+0x53fc);
-readl(bar_addr[0]+0x5820);
-readl(bar_addr[0]+0x0);
-
-writel(0x18140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8300000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x4303360, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4209940, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x4303b60, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x43d0003, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x43e0000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4209940, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8240000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8290000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4240de1, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4290e00, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4201b40, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-writel(0x8808, bar_addr[0]+0x30);
-writel(0x100, bar_addr[0]+0x2c);
-writel(0xc28001, bar_addr[0]+0x28);
-writel(0x680, bar_addr[0]+0x170);
-writel(0x80007328, bar_addr[0]+0x2160);
-writel(0x7330, bar_addr[0]+0x2168);
-readl(bar_addr[0]+0x3828);
-
-writel(0x1410000, bar_addr[0]+0x3828);
-readl(bar_addr[0]+0x5b00);
-
-writel(0xec00200, bar_addr[0]+0x5b00);
-readl(bar_addr[0]+0x4000);
-readl(bar_addr[0]+0x4008);
-readl(bar_addr[0]+0x4010);
-readl(bar_addr[0]+0x4014);
-readl(bar_addr[0]+0x4018);
-readl(bar_addr[0]+0x401c);
-readl(bar_addr[0]+0x4020);
-readl(bar_addr[0]+0x4028);
-readl(bar_addr[0]+0x4030);
-readl(bar_addr[0]+0x4038);
-readl(bar_addr[0]+0x4040);
-readl(bar_addr[0]+0x4048);
-readl(bar_addr[0]+0x404c);
-readl(bar_addr[0]+0x4050);
-readl(bar_addr[0]+0x4054);
-readl(bar_addr[0]+0x4058);
-readl(bar_addr[0]+0x4074);
-readl(bar_addr[0]+0x4078);
-readl(bar_addr[0]+0x407c);
-readl(bar_addr[0]+0x4080);
-readl(bar_addr[0]+0x4088);
-readl(bar_addr[0]+0x408c);
-readl(bar_addr[0]+0x4090);
-readl(bar_addr[0]+0x4094);
-readl(bar_addr[0]+0x40a0);
-readl(bar_addr[0]+0x40a4);
-readl(bar_addr[0]+0x40a8);
-readl(bar_addr[0]+0x40ac);
-readl(bar_addr[0]+0x40b0);
-readl(bar_addr[0]+0x40c0);
-readl(bar_addr[0]+0x40c4);
-readl(bar_addr[0]+0x40c8);
-readl(bar_addr[0]+0x40cc);
-readl(bar_addr[0]+0x40d0);
-readl(bar_addr[0]+0x40d4);
-readl(bar_addr[0]+0x40f0);
-readl(bar_addr[0]+0x40f4);
-readl(bar_addr[0]+0x405c);
-readl(bar_addr[0]+0x4060);
-readl(bar_addr[0]+0x4064);
-readl(bar_addr[0]+0x4068);
-readl(bar_addr[0]+0x406c);
-readl(bar_addr[0]+0x4070);
-readl(bar_addr[0]+0x40d8);
-readl(bar_addr[0]+0x40dc);
-readl(bar_addr[0]+0x40e0);
-readl(bar_addr[0]+0x40e4);
-readl(bar_addr[0]+0x40e8);
-readl(bar_addr[0]+0x40ec);
-readl(bar_addr[0]+0x4004);
-readl(bar_addr[0]+0x400c);
-readl(bar_addr[0]+0x4034);
-readl(bar_addr[0]+0x403c);
-readl(bar_addr[0]+0x40f8);
-readl(bar_addr[0]+0x40fc);
-readl(bar_addr[0]+0x40b4);
-readl(bar_addr[0]+0x40b8);
-readl(bar_addr[0]+0x40bc);
-readl(bar_addr[0]+0x4100);
-readl(bar_addr[0]+0x4124);
-readl(bar_addr[0]+0x4104);
-readl(bar_addr[0]+0x4108);
-readl(bar_addr[0]+0x410c);
-readl(bar_addr[0]+0x4110);
-readl(bar_addr[0]+0x4118);
-readl(bar_addr[0]+0x411c);
-readl(bar_addr[0]+0x4120);
-
-writel(0x8100, bar_addr[0]+0x38);
-writel(0x0, bar_addr[0]+0x458);
-writel(0x1a00000, bar_addr[0]+0xb608);
-readl(bar_addr[0]+0xb600);
-readl(bar_addr[0]+0xb604);
-readl(bar_addr[0]+0xb608);
-readl(bar_addr[0]+0xb600);
-readl(bar_addr[0]+0xb604);
-readl(bar_addr[0]+0xb614);
-
-writel(0x0, bar_addr[0]+0xb614);
-readl(bar_addr[0]+0xb614);
-readl(bar_addr[0]+0xb620);
-
-writel(0x0, bar_addr[0]+0xb620);
-readl(bar_addr[0]+0xb620);
-
-writel(0x0, bar_addr[0]+0xb634);
-writel(0x0, bar_addr[0]+0xb638);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0xb628);
-readl(bar_addr[0]+0xb61c);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8390000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x4390000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4201140, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x5820);
-readl(bar_addr[0]+0x0);
-
-writel(0x18140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8300000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x4303360, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4209140, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x4303b60, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x43d0003, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x43e0000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4209140, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8240000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8290000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4240de1, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4290e00, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4201340, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-writel(0x8808, bar_addr[0]+0x30);
-writel(0x100, bar_addr[0]+0x2c);
-writel(0xc28001, bar_addr[0]+0x28);
-writel(0x680, bar_addr[0]+0x170);
-writel(0x80007328, bar_addr[0]+0x2160);
-writel(0x7330, bar_addr[0]+0x2168);
-readl(bar_addr[0]+0x100);
-
-writel(0x0, bar_addr[0]+0x53fc);
-writel(0x0, bar_addr[0]+0x53f8);
-writel(0x0, bar_addr[0]+0x53f4);
-writel(0x0, bar_addr[0]+0x53f0);
-writel(0x0, bar_addr[0]+0x53ec);
-writel(0x0, bar_addr[0]+0x53e8);
-writel(0x0, bar_addr[0]+0x53e4);
-writel(0x0, bar_addr[0]+0x53e0);
-writel(0x0, bar_addr[0]+0x53dc);
-writel(0x0, bar_addr[0]+0x53d8);
-writel(0x0, bar_addr[0]+0x53d4);
-writel(0x0, bar_addr[0]+0x53d0);
-writel(0x0, bar_addr[0]+0x53cc);
-writel(0x0, bar_addr[0]+0x53c8);
-writel(0x0, bar_addr[0]+0x53c4);
-writel(0x0, bar_addr[0]+0x53c0);
-writel(0x0, bar_addr[0]+0x53bc);
-writel(0x0, bar_addr[0]+0x53b8);
-writel(0x0, bar_addr[0]+0x53b4);
-writel(0x0, bar_addr[0]+0x53b0);
-writel(0x0, bar_addr[0]+0x53ac);
-writel(0x0, bar_addr[0]+0x53a8);
-writel(0x0, bar_addr[0]+0x53a4);
-writel(0x0, bar_addr[0]+0x53a0);
-writel(0x0, bar_addr[0]+0x539c);
-writel(0x0, bar_addr[0]+0x5398);
-writel(0x0, bar_addr[0]+0x5394);
-writel(0x0, bar_addr[0]+0x5390);
-writel(0x0, bar_addr[0]+0x538c);
-writel(0x0, bar_addr[0]+0x5388);
-writel(0x0, bar_addr[0]+0x5384);
-writel(0x0, bar_addr[0]+0x5380);
-writel(0x0, bar_addr[0]+0x537c);
-writel(0x0, bar_addr[0]+0x5378);
-writel(0x0, bar_addr[0]+0x5374);
-writel(0x0, bar_addr[0]+0x5370);
-writel(0x0, bar_addr[0]+0x536c);
-writel(0x0, bar_addr[0]+0x5368);
-writel(0x0, bar_addr[0]+0x5364);
-writel(0x0, bar_addr[0]+0x5360);
-writel(0x0, bar_addr[0]+0x535c);
-writel(0x0, bar_addr[0]+0x5358);
-writel(0x0, bar_addr[0]+0x5354);
-writel(0x0, bar_addr[0]+0x5350);
-writel(0x0, bar_addr[0]+0x534c);
-writel(0x0, bar_addr[0]+0x5348);
-writel(0x0, bar_addr[0]+0x5344);
-writel(0x0, bar_addr[0]+0x5340);
-writel(0x0, bar_addr[0]+0x533c);
-writel(0x0, bar_addr[0]+0x5338);
-writel(0x0, bar_addr[0]+0x5334);
-writel(0x0, bar_addr[0]+0x5330);
-writel(0x0, bar_addr[0]+0x532c);
-writel(0x0, bar_addr[0]+0x5328);
-writel(0x0, bar_addr[0]+0x5324);
-writel(0x0, bar_addr[0]+0x5320);
-writel(0x0, bar_addr[0]+0x531c);
-writel(0x0, bar_addr[0]+0x5318);
-writel(0x0, bar_addr[0]+0x5314);
-writel(0x0, bar_addr[0]+0x5310);
-writel(0x0, bar_addr[0]+0x530c);
-writel(0x0, bar_addr[0]+0x5308);
-writel(0x0, bar_addr[0]+0x5304);
-writel(0x0, bar_addr[0]+0x5300);
-writel(0x0, bar_addr[0]+0x52fc);
-writel(0x0, bar_addr[0]+0x52f8);
-writel(0x0, bar_addr[0]+0x52f4);
-writel(0x0, bar_addr[0]+0x52f0);
-writel(0x0, bar_addr[0]+0x52ec);
-writel(0x0, bar_addr[0]+0x52e8);
-writel(0x0, bar_addr[0]+0x52e4);
-writel(0x0, bar_addr[0]+0x52e0);
-writel(0x0, bar_addr[0]+0x52dc);
-writel(0x0, bar_addr[0]+0x52d8);
-writel(0x0, bar_addr[0]+0x52d4);
-writel(0x0, bar_addr[0]+0x52d0);
-writel(0x0, bar_addr[0]+0x52cc);
-writel(0x0, bar_addr[0]+0x52c8);
-writel(0x0, bar_addr[0]+0x52c4);
-writel(0x0, bar_addr[0]+0x52c0);
-writel(0x0, bar_addr[0]+0x52bc);
-writel(0x0, bar_addr[0]+0x52b8);
-writel(0x0, bar_addr[0]+0x52b4);
-writel(0x0, bar_addr[0]+0x52b0);
-writel(0x0, bar_addr[0]+0x52ac);
-writel(0x0, bar_addr[0]+0x52a8);
-writel(0x0, bar_addr[0]+0x52a4);
-writel(0x0, bar_addr[0]+0x52a0);
-writel(0x0, bar_addr[0]+0x529c);
-writel(0x0, bar_addr[0]+0x5298);
-writel(0x0, bar_addr[0]+0x5294);
-writel(0x0, bar_addr[0]+0x5290);
-writel(0x0, bar_addr[0]+0x528c);
-writel(0x0, bar_addr[0]+0x5288);
-writel(0x0, bar_addr[0]+0x5284);
-writel(0x0, bar_addr[0]+0x5280);
-writel(0x0, bar_addr[0]+0x527c);
-writel(0x0, bar_addr[0]+0x5278);
-writel(0x0, bar_addr[0]+0x5274);
-writel(0x0, bar_addr[0]+0x5270);
-writel(0x0, bar_addr[0]+0x526c);
-writel(0x0, bar_addr[0]+0x5268);
-writel(0x0, bar_addr[0]+0x5264);
-writel(0x0, bar_addr[0]+0x5260);
-writel(0x0, bar_addr[0]+0x525c);
-writel(0x0, bar_addr[0]+0x5258);
-writel(0x0, bar_addr[0]+0x5254);
-writel(0x0, bar_addr[0]+0x5250);
-writel(0x0, bar_addr[0]+0x524c);
-writel(0x0, bar_addr[0]+0x5248);
-writel(0x0, bar_addr[0]+0x5244);
-writel(0x0, bar_addr[0]+0x5240);
-writel(0x0, bar_addr[0]+0x523c);
-writel(0x0, bar_addr[0]+0x5238);
-writel(0x0, bar_addr[0]+0x5234);
-writel(0x0, bar_addr[0]+0x5230);
-writel(0x0, bar_addr[0]+0x522c);
-writel(0x0, bar_addr[0]+0x5228);
-writel(0x0, bar_addr[0]+0x5224);
-writel(0x0, bar_addr[0]+0x5220);
-writel(0x0, bar_addr[0]+0x521c);
-writel(0x0, bar_addr[0]+0x5218);
-writel(0x0, bar_addr[0]+0x5214);
-writel(0x0, bar_addr[0]+0x5210);
-writel(0x0, bar_addr[0]+0x520c);
-writel(0x0, bar_addr[0]+0x5208);
-writel(0x0, bar_addr[0]+0x5204);
-writel(0x10000, bar_addr[0]+0x5200);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x100);
-
-writel(0x40000, bar_addr[0]+0x100);
-writel(0x0, bar_addr[0]+0x5474);
-writel(0x0, bar_addr[0]+0x5470);
-writel(0x0, bar_addr[0]+0x546c);
-writel(0x0, bar_addr[0]+0x5468);
-writel(0x0, bar_addr[0]+0x5464);
-writel(0x0, bar_addr[0]+0x5460);
-writel(0x0, bar_addr[0]+0x545c);
-writel(0x0, bar_addr[0]+0x5458);
-writel(0x0, bar_addr[0]+0x5454);
-writel(0x0, bar_addr[0]+0x5450);
-writel(0x0, bar_addr[0]+0x544c);
-writel(0x0, bar_addr[0]+0x5448);
-writel(0x0, bar_addr[0]+0x5444);
-writel(0x0, bar_addr[0]+0x5440);
-writel(0x0, bar_addr[0]+0x543c);
-writel(0x0, bar_addr[0]+0x5438);
-writel(0x0, bar_addr[0]+0x5434);
-writel(0x0, bar_addr[0]+0x5430);
-writel(0x0, bar_addr[0]+0x542c);
-writel(0x0, bar_addr[0]+0x5428);
-writel(0x0, bar_addr[0]+0x5424);
-writel(0x0, bar_addr[0]+0x5420);
-writel(0x0, bar_addr[0]+0x541c);
-writel(0x0, bar_addr[0]+0x5418);
-writel(0x0, bar_addr[0]+0x5414);
-writel(0x0, bar_addr[0]+0x5410);
-writel(0x0, bar_addr[0]+0x540c);
-writel(0x0, bar_addr[0]+0x5408);
-readl(bar_addr[0]+0x8);
-
-writel(0x0, bar_addr[0]+0x100);
-readl(bar_addr[0]+0x0);
-
-writel(0x58140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0x5600);
-
-writel(0x1, bar_addr[0]+0x5600);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x5600);
-
-writel(0x1, bar_addr[0]+0x5600);
-readl(bar_addr[0]+0x8);
-
-writel(0x1dea2000, bar_addr[0]+0x3800);
-writel(0x0, bar_addr[0]+0x3804);
-writel(0x1000, bar_addr[0]+0x3808);
-writel(0x0, bar_addr[0]+0x3810);
-writel(0x0, bar_addr[0]+0x3818);
-writel(0x0, bar_addr[0]+0x3810);
-writel(0x0, bar_addr[0]+0x3818);
-writel(0x8, bar_addr[0]+0x3820);
-writel(0x20, bar_addr[0]+0x382c);
-readl(bar_addr[0]+0x3828);
-
-writel(0x141011f, bar_addr[0]+0x3828);
-readl(bar_addr[0]+0x3828);
-
-writel(0x141011f, bar_addr[0]+0x3928);
-readl(bar_addr[0]+0x400);
-
-writel(0x10000f8, bar_addr[0]+0x400);
-readl(bar_addr[0]+0x400);
-
-writel(0x103f0f8, bar_addr[0]+0x400);
-readl(bar_addr[0]+0x8);
-
-writel(0xb028ebe2, bar_addr[0]+0x5c80);
-writel(0xa85f3951, bar_addr[0]+0x5c84);
-writel(0x1d61e42d, bar_addr[0]+0x5c88);
-writel(0x661e0ab, bar_addr[0]+0x5c8c);
-writel(0x5542ca31, bar_addr[0]+0x5c90);
-writel(0xa1cd6213, bar_addr[0]+0x5c94);
-writel(0xf31fd576, bar_addr[0]+0x5c98);
-writel(0x71cfc95a, bar_addr[0]+0x5c9c);
-writel(0xd394d0cb, bar_addr[0]+0x5ca0);
-writel(0xf22e4b83, bar_addr[0]+0x5ca4);
-writel(0x0, bar_addr[0]+0x5c00);
-writel(0x0, bar_addr[0]+0x5c04);
-writel(0x0, bar_addr[0]+0x5c08);
-writel(0x0, bar_addr[0]+0x5c0c);
-writel(0x0, bar_addr[0]+0x5c10);
-writel(0x0, bar_addr[0]+0x5c14);
-writel(0x0, bar_addr[0]+0x5c18);
-writel(0x0, bar_addr[0]+0x5c1c);
-writel(0x0, bar_addr[0]+0x5c20);
-writel(0x0, bar_addr[0]+0x5c24);
-writel(0x0, bar_addr[0]+0x5c28);
-writel(0x0, bar_addr[0]+0x5c2c);
-writel(0x0, bar_addr[0]+0x5c30);
-writel(0x0, bar_addr[0]+0x5c34);
-writel(0x0, bar_addr[0]+0x5c38);
-writel(0x0, bar_addr[0]+0x5c3c);
-writel(0x0, bar_addr[0]+0x5c40);
-writel(0x0, bar_addr[0]+0x5c44);
-writel(0x0, bar_addr[0]+0x5c48);
-writel(0x0, bar_addr[0]+0x5c4c);
-writel(0x0, bar_addr[0]+0x5c50);
-writel(0x0, bar_addr[0]+0x5c54);
-writel(0x0, bar_addr[0]+0x5c58);
-writel(0x0, bar_addr[0]+0x5c5c);
-writel(0x0, bar_addr[0]+0x5c60);
-writel(0x0, bar_addr[0]+0x5c64);
-writel(0x0, bar_addr[0]+0x5c68);
-writel(0x0, bar_addr[0]+0x5c6c);
-writel(0x0, bar_addr[0]+0x5c70);
-writel(0x0, bar_addr[0]+0x5c74);
-writel(0x0, bar_addr[0]+0x5c78);
-writel(0x0, bar_addr[0]+0x5c7c);
-readl(bar_addr[0]+0x5000);
-
-writel(0x2300, bar_addr[0]+0x5000);
-writel(0x370000, bar_addr[0]+0x5818);
-readl(bar_addr[0]+0x100);
-readl(bar_addr[0]+0x5008);
-
-writel(0x8000, bar_addr[0]+0x5008);
-writel(0x4008002, bar_addr[0]+0x100);
-readl(bar_addr[0]+0x100);
-readl(bar_addr[0]+0x8);
-
-writel(0x1040420, bar_addr[0]+0x2828);
-writel(0x1040420, bar_addr[0]+0x2928);
-writel(0x20, bar_addr[0]+0x2820);
-writel(0x20, bar_addr[0]+0x282c);
-writel(0xc3, bar_addr[0]+0xe8);
-writel(0xc3, bar_addr[0]+0xec);
-writel(0xc3, bar_addr[0]+0xf0);
-readl(bar_addr[0]+0x18);
-
-writel(0xffffffff, bar_addr[0]+0xe0);
-writel(0x18400000, bar_addr[0]+0x18);
-readl(bar_addr[0]+0x8);
-
-writel(0x1de3c000, bar_addr[0]+0x2800);
-writel(0x0, bar_addr[0]+0x2804);
-writel(0x1000, bar_addr[0]+0x2808);
-writel(0x0, bar_addr[0]+0x2810);
-writel(0x0, bar_addr[0]+0x2818);
-writel(0x0, bar_addr[0]+0x2810);
-writel(0x0, bar_addr[0]+0x2818);
-readl(bar_addr[0]+0x5000);
-
-writel(0x2300, bar_addr[0]+0x5000);
-writel(0x4008002, bar_addr[0]+0x100);
-writel(0x0, bar_addr[0]+0x2818);
-writel(0x10, bar_addr[0]+0x2818);
-writel(0x20, bar_addr[0]+0x2818);
-writel(0x30, bar_addr[0]+0x2818);
-writel(0x40, bar_addr[0]+0x2818);
-writel(0x50, bar_addr[0]+0x2818);
-writel(0x60, bar_addr[0]+0x2818);
-writel(0x70, bar_addr[0]+0x2818);
-writel(0x80, bar_addr[0]+0x2818);
-writel(0x90, bar_addr[0]+0x2818);
-writel(0xa0, bar_addr[0]+0x2818);
-writel(0xb0, bar_addr[0]+0x2818);
-writel(0xc0, bar_addr[0]+0x2818);
-writel(0xd0, bar_addr[0]+0x2818);
-writel(0xe0, bar_addr[0]+0x2818);
-writel(0xf0, bar_addr[0]+0x2818);
-writel(0xfee01004, bar_addr[3]+0x0);
-writel(0x0, bar_addr[3]+0x4);
-writel(0x4027, bar_addr[3]+0x8);
-writel(0x0, bar_addr[3]+0xc);
-readl(bar_addr[3]+0x0);
-
-writel(0xfee01004, bar_addr[3]+0x0);
-writel(0x0, bar_addr[3]+0x4);
-writel(0x4027, bar_addr[3]+0x8);
-writel(0xfee01004, bar_addr[3]+0x10);
-writel(0x0, bar_addr[3]+0x14);
-writel(0x4028, bar_addr[3]+0x18);
-writel(0x0, bar_addr[3]+0x1c);
-readl(bar_addr[3]+0x0);
-
-writel(0xfee01004, bar_addr[3]+0x10);
-writel(0x0, bar_addr[3]+0x14);
-writel(0x4028, bar_addr[3]+0x18);
-writel(0xfee01004, bar_addr[3]+0x20);
-writel(0x0, bar_addr[3]+0x24);
-writel(0x4029, bar_addr[3]+0x28);
-writel(0x0, bar_addr[3]+0x2c);
-readl(bar_addr[3]+0x0);
-
-writel(0xfee01004, bar_addr[3]+0x20);
-writel(0x0, bar_addr[3]+0x24);
-writel(0x4029, bar_addr[3]+0x28);
-readl(bar_addr[0]+0x5008);
-
-writel(0x9000, bar_addr[0]+0x5008);
-writel(0xc3, bar_addr[0]+0xe8);
-writel(0xc3, bar_addr[0]+0xec);
-writel(0xc3, bar_addr[0]+0xf0);
-writel(0x800a0908, bar_addr[0]+0xe4);
-readl(bar_addr[0]+0x18);
-
-writel(0x91400000, bar_addr[0]+0x18);
-readl(bar_addr[0]+0x8);
-
-writel(0x500000, bar_addr[0]+0xdc);
-writel(0x1570244, bar_addr[0]+0xd0);
-readl(bar_addr[0]+0x8);
-
-writel(0x1000004, bar_addr[0]+0xc8);
-readl(bar_addr[0]+0xc0);
-
-writel(0x1070244, bar_addr[0]+0xd0);
-readl(bar_addr[0]+0x100);
-
-writel(0x0, bar_addr[0]+0x53fc);
-writel(0x0, bar_addr[0]+0x53f8);
-writel(0x0, bar_addr[0]+0x53f4);
-writel(0x0, bar_addr[0]+0x53f0);
-writel(0x0, bar_addr[0]+0x53ec);
-writel(0x0, bar_addr[0]+0x53e8);
-writel(0x0, bar_addr[0]+0x53e4);
-writel(0x0, bar_addr[0]+0x53e0);
-writel(0x0, bar_addr[0]+0x53dc);
-writel(0x0, bar_addr[0]+0x53d8);
-writel(0x0, bar_addr[0]+0x53d4);
-writel(0x0, bar_addr[0]+0x53d0);
-writel(0x0, bar_addr[0]+0x53cc);
-writel(0x0, bar_addr[0]+0x53c8);
-writel(0x0, bar_addr[0]+0x53c4);
-writel(0x0, bar_addr[0]+0x53c0);
-writel(0x0, bar_addr[0]+0x53bc);
-writel(0x0, bar_addr[0]+0x53b8);
-writel(0x0, bar_addr[0]+0x53b4);
-writel(0x0, bar_addr[0]+0x53b0);
-writel(0x0, bar_addr[0]+0x53ac);
-writel(0x0, bar_addr[0]+0x53a8);
-writel(0x0, bar_addr[0]+0x53a4);
-writel(0x0, bar_addr[0]+0x53a0);
-writel(0x0, bar_addr[0]+0x539c);
-writel(0x0, bar_addr[0]+0x5398);
-writel(0x0, bar_addr[0]+0x5394);
-writel(0x0, bar_addr[0]+0x5390);
-writel(0x0, bar_addr[0]+0x538c);
-writel(0x0, bar_addr[0]+0x5388);
-writel(0x0, bar_addr[0]+0x5384);
-writel(0x0, bar_addr[0]+0x5380);
-writel(0x0, bar_addr[0]+0x537c);
-writel(0x0, bar_addr[0]+0x5378);
-writel(0x0, bar_addr[0]+0x5374);
-writel(0x0, bar_addr[0]+0x5370);
-writel(0x0, bar_addr[0]+0x536c);
-writel(0x0, bar_addr[0]+0x5368);
-writel(0x0, bar_addr[0]+0x5364);
-writel(0x0, bar_addr[0]+0x5360);
-writel(0x0, bar_addr[0]+0x535c);
-writel(0x0, bar_addr[0]+0x5358);
-writel(0x0, bar_addr[0]+0x5354);
-writel(0x0, bar_addr[0]+0x5350);
-writel(0x0, bar_addr[0]+0x534c);
-writel(0x0, bar_addr[0]+0x5348);
-writel(0x0, bar_addr[0]+0x5344);
-writel(0x0, bar_addr[0]+0x5340);
-writel(0x0, bar_addr[0]+0x533c);
-writel(0x0, bar_addr[0]+0x5338);
-writel(0x0, bar_addr[0]+0x5334);
-writel(0x0, bar_addr[0]+0x5330);
-writel(0x0, bar_addr[0]+0x532c);
-writel(0x0, bar_addr[0]+0x5328);
-writel(0x0, bar_addr[0]+0x5324);
-writel(0x0, bar_addr[0]+0x5320);
-writel(0x0, bar_addr[0]+0x531c);
-writel(0x0, bar_addr[0]+0x5318);
-writel(0x0, bar_addr[0]+0x5314);
-writel(0x0, bar_addr[0]+0x5310);
-writel(0x0, bar_addr[0]+0x530c);
-writel(0x0, bar_addr[0]+0x5308);
-writel(0x0, bar_addr[0]+0x5304);
-writel(0x0, bar_addr[0]+0x5300);
-writel(0x0, bar_addr[0]+0x52fc);
-writel(0x0, bar_addr[0]+0x52f8);
-writel(0x0, bar_addr[0]+0x52f4);
-writel(0x0, bar_addr[0]+0x52f0);
-writel(0x0, bar_addr[0]+0x52ec);
-writel(0x0, bar_addr[0]+0x52e8);
-writel(0x0, bar_addr[0]+0x52e4);
-writel(0x0, bar_addr[0]+0x52e0);
-writel(0x0, bar_addr[0]+0x52dc);
-writel(0x0, bar_addr[0]+0x52d8);
-writel(0x0, bar_addr[0]+0x52d4);
-writel(0x0, bar_addr[0]+0x52d0);
-writel(0x0, bar_addr[0]+0x52cc);
-writel(0x0, bar_addr[0]+0x52c8);
-writel(0x0, bar_addr[0]+0x52c4);
-writel(0x0, bar_addr[0]+0x52c0);
-writel(0x0, bar_addr[0]+0x52bc);
-writel(0x0, bar_addr[0]+0x52b8);
-writel(0x0, bar_addr[0]+0x52b4);
-writel(0x0, bar_addr[0]+0x52b0);
-writel(0x0, bar_addr[0]+0x52ac);
-writel(0x0, bar_addr[0]+0x52a8);
-writel(0x0, bar_addr[0]+0x52a4);
-writel(0x0, bar_addr[0]+0x52a0);
-writel(0x0, bar_addr[0]+0x529c);
-writel(0x0, bar_addr[0]+0x5298);
-writel(0x0, bar_addr[0]+0x5294);
-writel(0x0, bar_addr[0]+0x5290);
-writel(0x0, bar_addr[0]+0x528c);
-writel(0x0, bar_addr[0]+0x5288);
-writel(0x0, bar_addr[0]+0x5284);
-writel(0x0, bar_addr[0]+0x5280);
-writel(0x0, bar_addr[0]+0x527c);
-writel(0x0, bar_addr[0]+0x5278);
-writel(0x0, bar_addr[0]+0x5274);
-writel(0x0, bar_addr[0]+0x5270);
-writel(0x0, bar_addr[0]+0x526c);
-writel(0x0, bar_addr[0]+0x5268);
-writel(0x0, bar_addr[0]+0x5264);
-writel(0x0, bar_addr[0]+0x5260);
-writel(0x0, bar_addr[0]+0x525c);
-writel(0x0, bar_addr[0]+0x5258);
-writel(0x0, bar_addr[0]+0x5254);
-writel(0x0, bar_addr[0]+0x5250);
-writel(0x0, bar_addr[0]+0x524c);
-writel(0x0, bar_addr[0]+0x5248);
-writel(0x0, bar_addr[0]+0x5244);
-writel(0x0, bar_addr[0]+0x5240);
-writel(0x0, bar_addr[0]+0x523c);
-writel(0x0, bar_addr[0]+0x5238);
-writel(0x0, bar_addr[0]+0x5234);
-writel(0x0, bar_addr[0]+0x5230);
-writel(0x0, bar_addr[0]+0x522c);
-writel(0x0, bar_addr[0]+0x5228);
-writel(0x0, bar_addr[0]+0x5224);
-writel(0x0, bar_addr[0]+0x5220);
-writel(0x0, bar_addr[0]+0x521c);
-writel(0x0, bar_addr[0]+0x5218);
-writel(0x0, bar_addr[0]+0x5214);
-writel(0x0, bar_addr[0]+0x5210);
-writel(0x0, bar_addr[0]+0x520c);
-writel(0x0, bar_addr[0]+0x5208);
-writel(0x0, bar_addr[0]+0x5204);
-writel(0x10000, bar_addr[0]+0x5200);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x100);
-
-writel(0x4048002, bar_addr[0]+0x100);
-writel(0x0, bar_addr[0]+0x5474);
-writel(0x0, bar_addr[0]+0x5470);
-writel(0x0, bar_addr[0]+0x546c);
-writel(0x0, bar_addr[0]+0x5468);
-writel(0x0, bar_addr[0]+0x5464);
-writel(0x0, bar_addr[0]+0x5460);
-writel(0x0, bar_addr[0]+0x545c);
-writel(0x0, bar_addr[0]+0x5458);
-writel(0x0, bar_addr[0]+0x5454);
-writel(0x0, bar_addr[0]+0x5450);
-writel(0x0, bar_addr[0]+0x544c);
-writel(0x0, bar_addr[0]+0x5448);
-writel(0x0, bar_addr[0]+0x5444);
-writel(0x0, bar_addr[0]+0x5440);
-writel(0x0, bar_addr[0]+0x543c);
-writel(0x0, bar_addr[0]+0x5438);
-writel(0x0, bar_addr[0]+0x5434);
-writel(0x0, bar_addr[0]+0x5430);
-writel(0x0, bar_addr[0]+0x542c);
-writel(0x0, bar_addr[0]+0x5428);
-writel(0x0, bar_addr[0]+0x5424);
-writel(0x0, bar_addr[0]+0x5420);
-writel(0x0, bar_addr[0]+0x541c);
-writel(0x0, bar_addr[0]+0x5418);
-writel(0x0, bar_addr[0]+0x5414);
-writel(0x0, bar_addr[0]+0x5410);
-writel(0x0, bar_addr[0]+0x540c);
-writel(0x0, bar_addr[0]+0x5408);
-readl(bar_addr[0]+0x8);
-
-writel(0x4008002, bar_addr[0]+0x100);
-readl(bar_addr[0]+0x0);
-
-writel(0x58140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-writel(0x3d, bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-
-writel(0x100000, bar_addr[0]+0xc8);
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8350000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-
-writel(0x100000, bar_addr[0]+0xd0);
-readl(bar_addr[0]+0x100);
-
-writel(0x0, bar_addr[0]+0x53fc);
-writel(0x0, bar_addr[0]+0x53f8);
-writel(0x0, bar_addr[0]+0x53f4);
-writel(0x0, bar_addr[0]+0x53f0);
-writel(0x0, bar_addr[0]+0x53ec);
-writel(0x0, bar_addr[0]+0x53e8);
-writel(0x0, bar_addr[0]+0x53e4);
-writel(0x0, bar_addr[0]+0x53e0);
-writel(0x0, bar_addr[0]+0x53dc);
-writel(0x0, bar_addr[0]+0x53d8);
-writel(0x0, bar_addr[0]+0x53d4);
-writel(0x0, bar_addr[0]+0x53d0);
-writel(0x0, bar_addr[0]+0x53cc);
-writel(0x0, bar_addr[0]+0x53c8);
-writel(0x0, bar_addr[0]+0x53c4);
-writel(0x0, bar_addr[0]+0x53c0);
-writel(0x0, bar_addr[0]+0x53bc);
-writel(0x0, bar_addr[0]+0x53b8);
-writel(0x0, bar_addr[0]+0x53b4);
-writel(0x0, bar_addr[0]+0x53b0);
-writel(0x0, bar_addr[0]+0x53ac);
-writel(0x0, bar_addr[0]+0x53a8);
-writel(0x0, bar_addr[0]+0x53a4);
-writel(0x0, bar_addr[0]+0x53a0);
-writel(0x0, bar_addr[0]+0x539c);
-writel(0x0, bar_addr[0]+0x5398);
-writel(0x0, bar_addr[0]+0x5394);
-writel(0x0, bar_addr[0]+0x5390);
-writel(0x0, bar_addr[0]+0x538c);
-writel(0x0, bar_addr[0]+0x5388);
-writel(0x0, bar_addr[0]+0x5384);
-writel(0x0, bar_addr[0]+0x5380);
-writel(0x0, bar_addr[0]+0x537c);
-writel(0x0, bar_addr[0]+0x5378);
-writel(0x0, bar_addr[0]+0x5374);
-writel(0x0, bar_addr[0]+0x5370);
-writel(0x0, bar_addr[0]+0x536c);
-writel(0x0, bar_addr[0]+0x5368);
-writel(0x0, bar_addr[0]+0x5364);
-writel(0x0, bar_addr[0]+0x5360);
-writel(0x0, bar_addr[0]+0x535c);
-writel(0x0, bar_addr[0]+0x5358);
-writel(0x0, bar_addr[0]+0x5354);
-writel(0x0, bar_addr[0]+0x5350);
-writel(0x0, bar_addr[0]+0x534c);
-writel(0x0, bar_addr[0]+0x5348);
-writel(0x0, bar_addr[0]+0x5344);
-writel(0x0, bar_addr[0]+0x5340);
-writel(0x0, bar_addr[0]+0x533c);
-writel(0x0, bar_addr[0]+0x5338);
-writel(0x0, bar_addr[0]+0x5334);
-writel(0x0, bar_addr[0]+0x5330);
-writel(0x0, bar_addr[0]+0x532c);
-writel(0x0, bar_addr[0]+0x5328);
-writel(0x0, bar_addr[0]+0x5324);
-writel(0x0, bar_addr[0]+0x5320);
-writel(0x0, bar_addr[0]+0x531c);
-writel(0x0, bar_addr[0]+0x5318);
-writel(0x0, bar_addr[0]+0x5314);
-writel(0x0, bar_addr[0]+0x5310);
-writel(0x0, bar_addr[0]+0x530c);
-writel(0x0, bar_addr[0]+0x5308);
-writel(0x0, bar_addr[0]+0x5304);
-writel(0x0, bar_addr[0]+0x5300);
-writel(0x0, bar_addr[0]+0x52fc);
-writel(0x0, bar_addr[0]+0x52f8);
-writel(0x0, bar_addr[0]+0x52f4);
-writel(0x0, bar_addr[0]+0x52f0);
-writel(0x0, bar_addr[0]+0x52ec);
-writel(0x0, bar_addr[0]+0x52e8);
-writel(0x0, bar_addr[0]+0x52e4);
-writel(0x0, bar_addr[0]+0x52e0);
-writel(0x0, bar_addr[0]+0x52dc);
-writel(0x0, bar_addr[0]+0x52d8);
-writel(0x0, bar_addr[0]+0x52d4);
-writel(0x0, bar_addr[0]+0x52d0);
-writel(0x0, bar_addr[0]+0x52cc);
-writel(0x0, bar_addr[0]+0x52c8);
-writel(0x0, bar_addr[0]+0x52c4);
-writel(0x0, bar_addr[0]+0x52c0);
-writel(0x0, bar_addr[0]+0x52bc);
-writel(0x0, bar_addr[0]+0x52b8);
-writel(0x0, bar_addr[0]+0x52b4);
-writel(0x0, bar_addr[0]+0x52b0);
-writel(0x0, bar_addr[0]+0x52ac);
-writel(0x0, bar_addr[0]+0x52a8);
-writel(0x0, bar_addr[0]+0x52a4);
-writel(0x0, bar_addr[0]+0x52a0);
-writel(0x0, bar_addr[0]+0x529c);
-writel(0x0, bar_addr[0]+0x5298);
-writel(0x0, bar_addr[0]+0x5294);
-writel(0x0, bar_addr[0]+0x5290);
-writel(0x0, bar_addr[0]+0x528c);
-writel(0x0, bar_addr[0]+0x5288);
-writel(0x0, bar_addr[0]+0x5284);
-writel(0x0, bar_addr[0]+0x5280);
-writel(0x0, bar_addr[0]+0x527c);
-writel(0x0, bar_addr[0]+0x5278);
-writel(0x0, bar_addr[0]+0x5274);
-writel(0x0, bar_addr[0]+0x5270);
-writel(0x0, bar_addr[0]+0x526c);
-writel(0x0, bar_addr[0]+0x5268);
-writel(0x0, bar_addr[0]+0x5264);
-writel(0x0, bar_addr[0]+0x5260);
-writel(0x0, bar_addr[0]+0x525c);
-writel(0x0, bar_addr[0]+0x5258);
-writel(0x0, bar_addr[0]+0x5254);
-writel(0x0, bar_addr[0]+0x5250);
-writel(0x0, bar_addr[0]+0x524c);
-writel(0x0, bar_addr[0]+0x5248);
-writel(0x0, bar_addr[0]+0x5244);
-writel(0x0, bar_addr[0]+0x5240);
-writel(0x0, bar_addr[0]+0x523c);
-writel(0x0, bar_addr[0]+0x5238);
-writel(0x0, bar_addr[0]+0x5234);
-writel(0x0, bar_addr[0]+0x5230);
-writel(0x0, bar_addr[0]+0x522c);
-writel(0x0, bar_addr[0]+0x5228);
-writel(0x0, bar_addr[0]+0x5224);
-writel(0x0, bar_addr[0]+0x5220);
-writel(0x0, bar_addr[0]+0x521c);
-writel(0x0, bar_addr[0]+0x5218);
-writel(0x0, bar_addr[0]+0x5214);
-writel(0x0, bar_addr[0]+0x5210);
-writel(0x0, bar_addr[0]+0x520c);
-writel(0x0, bar_addr[0]+0x5208);
-writel(0x0, bar_addr[0]+0x5204);
-writel(0x10000, bar_addr[0]+0x5200);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x100);
-
-writel(0x4048002, bar_addr[0]+0x100);
-writel(0x0, bar_addr[0]+0x5474);
-writel(0x0, bar_addr[0]+0x5470);
-writel(0x0, bar_addr[0]+0x546c);
-writel(0x0, bar_addr[0]+0x5468);
-writel(0x0, bar_addr[0]+0x5464);
-writel(0x0, bar_addr[0]+0x5460);
-writel(0x0, bar_addr[0]+0x545c);
-writel(0x0, bar_addr[0]+0x5458);
-writel(0x0, bar_addr[0]+0x5454);
-writel(0x0, bar_addr[0]+0x5450);
-writel(0x0, bar_addr[0]+0x544c);
-writel(0x0, bar_addr[0]+0x5448);
-writel(0x0, bar_addr[0]+0x5444);
-writel(0x0, bar_addr[0]+0x5440);
-writel(0x0, bar_addr[0]+0x543c);
-writel(0x0, bar_addr[0]+0x5438);
-writel(0x0, bar_addr[0]+0x5434);
-writel(0x0, bar_addr[0]+0x5430);
-writel(0x0, bar_addr[0]+0x542c);
-writel(0x0, bar_addr[0]+0x5428);
-writel(0x0, bar_addr[0]+0x5424);
-writel(0x0, bar_addr[0]+0x5420);
-writel(0x0, bar_addr[0]+0x541c);
-writel(0x0, bar_addr[0]+0x5418);
-writel(0x0, bar_addr[0]+0x5414);
-writel(0x0, bar_addr[0]+0x5410);
-writel(0x0, bar_addr[0]+0x540c);
-writel(0x0, bar_addr[0]+0x5408);
-readl(bar_addr[0]+0x8);
-
-writel(0x4008002, bar_addr[0]+0x100);
-readl(bar_addr[0]+0x0);
-
-writel(0x58140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8310000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x400);
-
-writel(0x103f0f8, bar_addr[0]+0x400);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x0);
-
-writel(0x58140245, bar_addr[0]+0x0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8240000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8250000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x0);
-
-writel(0x58140245, bar_addr[0]+0x0);
-writel(0x3d, bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0x14);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8200000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8240000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8250000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8260000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8290000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x82a0000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x82f0000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8310000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x400);
-
-writel(0x103f0fa, bar_addr[0]+0x400);
-readl(bar_addr[0]+0x4000);
-readl(bar_addr[0]+0x4074);
-readl(bar_addr[0]+0x4088);
-readl(bar_addr[0]+0x408c);
-readl(bar_addr[0]+0x4078);
-readl(bar_addr[0]+0x407c);
-readl(bar_addr[0]+0x40ac);
-readl(bar_addr[0]+0x4010);
-readl(bar_addr[0]+0x4048);
-readl(bar_addr[0]+0x404c);
-readl(bar_addr[0]+0x4050);
-readl(bar_addr[0]+0x4054);
-readl(bar_addr[0]+0x4080);
-readl(bar_addr[0]+0x4090);
-readl(bar_addr[0]+0x4094);
-readl(bar_addr[0]+0x40a0);
-readl(bar_addr[0]+0x40a4);
-readl(bar_addr[0]+0x40f0);
-readl(bar_addr[0]+0x40f4);
-readl(bar_addr[0]+0x40d4);
-readl(bar_addr[0]+0x4004);
-readl(bar_addr[0]+0x400c);
-readl(bar_addr[0]+0x403c);
-readl(bar_addr[0]+0x40f8);
-readl(bar_addr[0]+0x40fc);
-readl(bar_addr[0]+0x40bc);
-readl(bar_addr[0]+0x40b4);
-readl(bar_addr[0]+0x40b8);
-
-writel(0x100000, bar_addr[0]+0xc8);
-writel(0x3d0, bar_addr[0]+0xe8);
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-
-writel(0x100000, bar_addr[0]+0xd0);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8350000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0x4000);
-readl(bar_addr[0]+0x4074);
-readl(bar_addr[0]+0x4088);
-readl(bar_addr[0]+0x408c);
-readl(bar_addr[0]+0x4078);
-readl(bar_addr[0]+0x407c);
-readl(bar_addr[0]+0x40ac);
-readl(bar_addr[0]+0x4010);
-readl(bar_addr[0]+0x4048);
-readl(bar_addr[0]+0x404c);
-readl(bar_addr[0]+0x4050);
-readl(bar_addr[0]+0x4054);
-readl(bar_addr[0]+0x4080);
-readl(bar_addr[0]+0x4090);
-readl(bar_addr[0]+0x4094);
-readl(bar_addr[0]+0x40a0);
-readl(bar_addr[0]+0x40a4);
-readl(bar_addr[0]+0x40f0);
-readl(bar_addr[0]+0x40f4);
-readl(bar_addr[0]+0x40d4);
-readl(bar_addr[0]+0x4004);
-readl(bar_addr[0]+0x400c);
-readl(bar_addr[0]+0x403c);
-readl(bar_addr[0]+0x40f8);
-readl(bar_addr[0]+0x40fc);
-readl(bar_addr[0]+0x40bc);
-readl(bar_addr[0]+0x40b4);
-readl(bar_addr[0]+0x40b8);
-readl(bar_addr[0]+0x100);
-
-writel(0x0, bar_addr[0]+0x53fc);
-writel(0x0, bar_addr[0]+0x53f8);
-writel(0x0, bar_addr[0]+0x53f4);
-writel(0x0, bar_addr[0]+0x53f0);
-writel(0x0, bar_addr[0]+0x53ec);
-writel(0x0, bar_addr[0]+0x53e8);
-writel(0x0, bar_addr[0]+0x53e4);
-writel(0x0, bar_addr[0]+0x53e0);
-writel(0x0, bar_addr[0]+0x53dc);
-writel(0x0, bar_addr[0]+0x53d8);
-writel(0x0, bar_addr[0]+0x53d4);
-writel(0x0, bar_addr[0]+0x53d0);
-writel(0x0, bar_addr[0]+0x53cc);
-writel(0x0, bar_addr[0]+0x53c8);
-writel(0x0, bar_addr[0]+0x53c4);
-writel(0x0, bar_addr[0]+0x53c0);
-writel(0x0, bar_addr[0]+0x53bc);
-writel(0x0, bar_addr[0]+0x53b8);
-writel(0x0, bar_addr[0]+0x53b4);
-writel(0x0, bar_addr[0]+0x53b0);
-writel(0x0, bar_addr[0]+0x53ac);
-writel(0x0, bar_addr[0]+0x53a8);
-writel(0x0, bar_addr[0]+0x53a4);
-writel(0x0, bar_addr[0]+0x53a0);
-writel(0x0, bar_addr[0]+0x539c);
-writel(0x0, bar_addr[0]+0x5398);
-writel(0x0, bar_addr[0]+0x5394);
-writel(0x0, bar_addr[0]+0x5390);
-writel(0x0, bar_addr[0]+0x538c);
-writel(0x0, bar_addr[0]+0x5388);
-writel(0x0, bar_addr[0]+0x5384);
-writel(0x0, bar_addr[0]+0x5380);
-writel(0x0, bar_addr[0]+0x537c);
-writel(0x0, bar_addr[0]+0x5378);
-writel(0x0, bar_addr[0]+0x5374);
-writel(0x0, bar_addr[0]+0x5370);
-writel(0x0, bar_addr[0]+0x536c);
-writel(0x0, bar_addr[0]+0x5368);
-writel(0x0, bar_addr[0]+0x5364);
-writel(0x0, bar_addr[0]+0x5360);
-writel(0x0, bar_addr[0]+0x535c);
-writel(0x0, bar_addr[0]+0x5358);
-writel(0x0, bar_addr[0]+0x5354);
-writel(0x0, bar_addr[0]+0x5350);
-writel(0x0, bar_addr[0]+0x534c);
-writel(0x0, bar_addr[0]+0x5348);
-writel(0x0, bar_addr[0]+0x5344);
-writel(0x0, bar_addr[0]+0x5340);
-writel(0x0, bar_addr[0]+0x533c);
-writel(0x0, bar_addr[0]+0x5338);
-writel(0x0, bar_addr[0]+0x5334);
-writel(0x0, bar_addr[0]+0x5330);
-writel(0x0, bar_addr[0]+0x532c);
-writel(0x0, bar_addr[0]+0x5328);
-writel(0x0, bar_addr[0]+0x5324);
-writel(0x0, bar_addr[0]+0x5320);
-writel(0x0, bar_addr[0]+0x531c);
-writel(0x0, bar_addr[0]+0x5318);
-writel(0x0, bar_addr[0]+0x5314);
-writel(0x0, bar_addr[0]+0x5310);
-writel(0x0, bar_addr[0]+0x530c);
-writel(0x0, bar_addr[0]+0x5308);
-writel(0x0, bar_addr[0]+0x5304);
-writel(0x0, bar_addr[0]+0x5300);
-writel(0x0, bar_addr[0]+0x52fc);
-writel(0x0, bar_addr[0]+0x52f8);
-writel(0x0, bar_addr[0]+0x52f4);
-writel(0x0, bar_addr[0]+0x52f0);
-writel(0x0, bar_addr[0]+0x52ec);
-writel(0x0, bar_addr[0]+0x52e8);
-writel(0x0, bar_addr[0]+0x52e4);
-writel(0x0, bar_addr[0]+0x52e0);
-writel(0x0, bar_addr[0]+0x52dc);
-writel(0x0, bar_addr[0]+0x52d8);
-writel(0x0, bar_addr[0]+0x52d4);
-writel(0x0, bar_addr[0]+0x52d0);
-writel(0x0, bar_addr[0]+0x52cc);
-writel(0x0, bar_addr[0]+0x52c8);
-writel(0x0, bar_addr[0]+0x52c4);
-writel(0x0, bar_addr[0]+0x52c0);
-writel(0x0, bar_addr[0]+0x52bc);
-writel(0x0, bar_addr[0]+0x52b8);
-writel(0x0, bar_addr[0]+0x52b4);
-writel(0x0, bar_addr[0]+0x52b0);
-writel(0x8, bar_addr[0]+0x52ac);
-writel(0x0, bar_addr[0]+0x52a8);
-writel(0x0, bar_addr[0]+0x52a4);
-writel(0x0, bar_addr[0]+0x52a0);
-writel(0x0, bar_addr[0]+0x529c);
-writel(0x0, bar_addr[0]+0x5298);
-writel(0x0, bar_addr[0]+0x5294);
-writel(0x0, bar_addr[0]+0x5290);
-writel(0x0, bar_addr[0]+0x528c);
-writel(0x0, bar_addr[0]+0x5288);
-writel(0x0, bar_addr[0]+0x5284);
-writel(0x0, bar_addr[0]+0x5280);
-writel(0x0, bar_addr[0]+0x527c);
-writel(0x0, bar_addr[0]+0x5278);
-writel(0x0, bar_addr[0]+0x5274);
-writel(0x0, bar_addr[0]+0x5270);
-writel(0x0, bar_addr[0]+0x526c);
-writel(0x0, bar_addr[0]+0x5268);
-writel(0x0, bar_addr[0]+0x5264);
-writel(0x0, bar_addr[0]+0x5260);
-writel(0x0, bar_addr[0]+0x525c);
-writel(0x0, bar_addr[0]+0x5258);
-writel(0x0, bar_addr[0]+0x5254);
-writel(0x0, bar_addr[0]+0x5250);
-writel(0x0, bar_addr[0]+0x524c);
-writel(0x0, bar_addr[0]+0x5248);
-writel(0x0, bar_addr[0]+0x5244);
-writel(0x0, bar_addr[0]+0x5240);
-writel(0x0, bar_addr[0]+0x523c);
-writel(0x0, bar_addr[0]+0x5238);
-writel(0x0, bar_addr[0]+0x5234);
-writel(0x0, bar_addr[0]+0x5230);
-writel(0x0, bar_addr[0]+0x522c);
-writel(0x0, bar_addr[0]+0x5228);
-writel(0x0, bar_addr[0]+0x5224);
-writel(0x0, bar_addr[0]+0x5220);
-writel(0x0, bar_addr[0]+0x521c);
-writel(0x0, bar_addr[0]+0x5218);
-writel(0x0, bar_addr[0]+0x5214);
-writel(0x0, bar_addr[0]+0x5210);
-writel(0x0, bar_addr[0]+0x520c);
-writel(0x0, bar_addr[0]+0x5208);
-writel(0x0, bar_addr[0]+0x5204);
-writel(0x10000, bar_addr[0]+0x5200);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0x100);
-
-writel(0x4048002, bar_addr[0]+0x100);
-writel(0x0, bar_addr[0]+0x5474);
-writel(0x0, bar_addr[0]+0x5470);
-writel(0x0, bar_addr[0]+0x546c);
-writel(0x0, bar_addr[0]+0x5468);
-writel(0x0, bar_addr[0]+0x5464);
-writel(0x0, bar_addr[0]+0x5460);
-writel(0x0, bar_addr[0]+0x545c);
-writel(0x0, bar_addr[0]+0x5458);
-writel(0x0, bar_addr[0]+0x5454);
-writel(0x0, bar_addr[0]+0x5450);
-writel(0x0, bar_addr[0]+0x544c);
-writel(0x0, bar_addr[0]+0x5448);
-writel(0x0, bar_addr[0]+0x5444);
-writel(0x0, bar_addr[0]+0x5440);
-writel(0x0, bar_addr[0]+0x543c);
-writel(0x0, bar_addr[0]+0x5438);
-writel(0x0, bar_addr[0]+0x5434);
-writel(0x0, bar_addr[0]+0x5430);
-writel(0x0, bar_addr[0]+0x542c);
-writel(0x0, bar_addr[0]+0x5428);
-writel(0x0, bar_addr[0]+0x5424);
-writel(0x0, bar_addr[0]+0x5420);
-writel(0x0, bar_addr[0]+0x541c);
-writel(0x0, bar_addr[0]+0x5418);
-writel(0x0, bar_addr[0]+0x5414);
-writel(0x0, bar_addr[0]+0x5410);
-writel(0x0, bar_addr[0]+0x540c);
-writel(0x0, bar_addr[0]+0x5408);
-readl(bar_addr[0]+0x8);
-
-writel(0x4008002, bar_addr[0]+0x100);
-readl(bar_addr[0]+0x0);
-
-writel(0x58140245, bar_addr[0]+0x0);
-writel(0x1, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x2, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x3, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x4, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x5, bar_addr[0]+0x3818);
-
-writel(0x1b2, bar_addr[0]+0xe8);
-writel(0x400000, bar_addr[0]+0xd0);
-
-writel(0x100000, bar_addr[0]+0xd0);
-readl(bar_addr[0]+0x4000);
-readl(bar_addr[0]+0x4074);
-readl(bar_addr[0]+0x4088);
-readl(bar_addr[0]+0x408c);
-readl(bar_addr[0]+0x4078);
-readl(bar_addr[0]+0x407c);
-readl(bar_addr[0]+0x40ac);
-readl(bar_addr[0]+0x4010);
-readl(bar_addr[0]+0x4048);
-readl(bar_addr[0]+0x404c);
-readl(bar_addr[0]+0x4050);
-readl(bar_addr[0]+0x4054);
-readl(bar_addr[0]+0x4080);
-readl(bar_addr[0]+0x4090);
-readl(bar_addr[0]+0x4094);
-readl(bar_addr[0]+0x40a0);
-readl(bar_addr[0]+0x40a4);
-readl(bar_addr[0]+0x40f0);
-readl(bar_addr[0]+0x40f4);
-readl(bar_addr[0]+0x40d4);
-readl(bar_addr[0]+0x4004);
-readl(bar_addr[0]+0x400c);
-readl(bar_addr[0]+0x403c);
-readl(bar_addr[0]+0x40f8);
-readl(bar_addr[0]+0x40fc);
-readl(bar_addr[0]+0x40bc);
-readl(bar_addr[0]+0x40b4);
-readl(bar_addr[0]+0x40b8);
-
-writel(0x100000, bar_addr[0]+0xc8);
-writel(0x117, bar_addr[0]+0xe8);
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8350000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8210000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8300000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8310000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8310000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8310000, bar_addr[0]+0x20);
-
-writel(0x100000, bar_addr[0]+0xd0);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x82a0000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-writel(0x6, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x7, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0xcd, bar_addr[0]+0xe8);
-
-writel(0x0, bar_addr[0]+0x2818);
-writel(0x100000, bar_addr[0]+0xd0);
-writel(0x8, bar_addr[0]+0x3818);
-
-writel(0xc3, bar_addr[0]+0xe8);
-writel(0x400000, bar_addr[0]+0xd0);
-
-writel(0x100000, bar_addr[0]+0xd0);
-
-writel(0x100000, bar_addr[0]+0xd0);
-writel(0x9, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-
-writel(0x100000, bar_addr[0]+0xd0);
-readl(bar_addr[0]+0x4000);
-readl(bar_addr[0]+0x4074);
-readl(bar_addr[0]+0x4088);
-readl(bar_addr[0]+0x408c);
-readl(bar_addr[0]+0x4078);
-readl(bar_addr[0]+0x407c);
-readl(bar_addr[0]+0x40ac);
-readl(bar_addr[0]+0x4010);
-readl(bar_addr[0]+0x4048);
-readl(bar_addr[0]+0x404c);
-readl(bar_addr[0]+0x4050);
-readl(bar_addr[0]+0x4054);
-readl(bar_addr[0]+0x4080);
-readl(bar_addr[0]+0x4090);
-readl(bar_addr[0]+0x4094);
-readl(bar_addr[0]+0x40a0);
-readl(bar_addr[0]+0x40a4);
-readl(bar_addr[0]+0x40f0);
-readl(bar_addr[0]+0x40f4);
-readl(bar_addr[0]+0x40d4);
-readl(bar_addr[0]+0x4004);
-readl(bar_addr[0]+0x400c);
-readl(bar_addr[0]+0x403c);
-readl(bar_addr[0]+0x40f8);
-readl(bar_addr[0]+0x40fc);
-readl(bar_addr[0]+0x40bc);
-readl(bar_addr[0]+0x40b4);
-readl(bar_addr[0]+0x40b8);
-
-writel(0x100000, bar_addr[0]+0xc8);
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-
-writel(0x80000008, bar_addr[0]+0x3820);
-writel(0x80000020, bar_addr[0]+0x2820);
-readl(bar_addr[0]+0x8);
-readl(bar_addr[0]+0xf00);
-
-writel(0x28, bar_addr[0]+0xf00);
-readl(bar_addr[0]+0xf00);
-
-writel(0x4360000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-
-writel(0x8350000, bar_addr[0]+0x20);
-readl(bar_addr[0]+0x20);
-readl(bar_addr[0]+0xf00);
-
-writel(0x8, bar_addr[0]+0xf00);
-
-writel(0x100000, bar_addr[0]+0xd0);
-
-writel(0xa, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x100000, bar_addr[0]+0xd0);
-
-writel(0xc, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x100000, bar_addr[0]+0xd0);
-
-writel(0xe, bar_addr[0]+0x3818);
-
-writel(0x400000, bar_addr[0]+0xd0);
-writel(0x100000, bar_addr[0]+0xd0);
-writel(0x11, bar_addr[0]+0x3818);
-
-
+pdev = pci_get_device(0x1022,0x2020,NULL);
+cpu_addr = dma_alloc_coherent(&(pdev->dev),0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,0x1e94b000,dma_handle);
+
+
+dev = load_bar(0x1022,0x2020);
+memcpy(bar_addr,dev->cfg.virtBAR,sizeof(bar_addr));
+blk = get_DMA_blk(0x1e94b000);
+writeb(0xab, blk->cpu_addr);
+writeb(0x20, blk->cpu_addr);
+writeb(0x4e, blk->cpu_addr);
+writeb(0xc, blk->cpu_addr);
+writeb(0x24, blk->cpu_addr);
+writeb(0x3d, blk->cpu_addr);
+outb(0x1,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+outb(0x7a,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xdf,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x24,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x24,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0x60,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x4,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x24,(int)bar_addr[0]+0x0);
+outb(0x96,(int)bar_addr[0]+0x4);
+outb(0xa3,(int)bar_addr[0]+0x38);
+outl(0x767d3ca4,(int)bar_addr[0]+0x44);
+outl(0xdc27559,(int)bar_addr[0]+0x48);
+outb(0x48,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0xe9,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x82,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x3,(int)bar_addr[0]+0xc);
+outb(0x25,(int)bar_addr[0]+0xc);
+outb(0x5a,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x7f,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+
+writeb(0x42, blk->cpu_addr);
+writeb(0x20, blk->cpu_addr);
+writeb(0xd3, blk->cpu_addr);
+writeb(0x1e, blk->cpu_addr);
+writeb(0xaa, blk->cpu_addr);
+outb(0xc,(int)bar_addr[0]+0x10);
+outb(0x1b,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xed,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+readb(blk->cpu_addr);
+outb(0x50,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x75,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x51,(int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0xfd,(int)bar_addr[0]+0x40);
+outb(0xc0,(int)bar_addr[0]+0x40);
+outb(0x24,(int)bar_addr[0]+0x0);
+outb(0xa2,(int)bar_addr[0]+0x4);
+outb(0x2,(int)bar_addr[0]+0x38);
+outl(0x60024,(int)bar_addr[0]+0x44);
+outl(0x1f97e024,(int)bar_addr[0]+0x48);
+outb(0x80,(int)bar_addr[0]+0xc);
+outb(0xa7,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0xb6,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x3,(int)bar_addr[0]+0x40);
+outb(0xd5,(int)bar_addr[0]+0x40);
+outb(0xb1,(int)bar_addr[0]+0xc);
+outb(0x41,(int)bar_addr[0]+0xc);
+outb(0x11,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x2,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x64,(int)bar_addr[0]+0xc);
+
+writeb(0xea, blk->cpu_addr);
+outb(0x1,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xba,(int)bar_addr[0]+0x8);
+outb(0x51,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x46,(int)bar_addr[0]+0x40);
+outb(0x1b,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xb6,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x8,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xa,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x4,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x4,(int)bar_addr[0]+0x8);
+outb(0x30,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x2,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0xd7,(int)bar_addr[0]+0x0);
+outb(0x2,(int)bar_addr[0]+0x4);
+outb(0x8,(int)bar_addr[0]+0x38);
+outl(0x700024,(int)bar_addr[0]+0x44);
+outl(0x1f76e024,(int)bar_addr[0]+0x48);
+outb(0xdd,(int)bar_addr[0]+0xc);
+outb(0xd1,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x6f,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0xd6,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x60,(int)bar_addr[0]+0xc);
+outb(0x81,(int)bar_addr[0]+0xc);
+outb(0x3b,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x32,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x0,(int)bar_addr[0]+0xc);
+
+outb(0xa4,(int)bar_addr[0]+0x10);
+outb(0x9,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+outb(0x51,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x9,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0x2d,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+readb(blk->cpu_addr);
+outb(0x10,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x20,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x24,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xed,(int)bar_addr[0]+0x8);
+outb(0x10,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0xce,(int)bar_addr[0]+0x40);
+outb(0x24,(int)bar_addr[0]+0x0);
+outb(0xa1,(int)bar_addr[0]+0x4);
+outb(0x40,(int)bar_addr[0]+0x38);
+outl(0x5611e3f5,(int)bar_addr[0]+0x44);
+outl(0x1f76e024,(int)bar_addr[0]+0x48);
+outb(0xbb,(int)bar_addr[0]+0xc);
+outb(0x83,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x1,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x4,(int)bar_addr[0]+0x40);
+outb(0x8,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0xef,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x13,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x52,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x18);
+outb(0x64,(int)bar_addr[0]+0xc);
+
+writeb(0xc0, blk->cpu_addr);
+outb(0x14,(int)bar_addr[0]+0x10);
+outb(0x3,(int)bar_addr[0]+0xc);
+outb(0x80,(int)bar_addr[0]+0x8);
+outb(0x43,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x0,(int)bar_addr[0]+0x40);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x19,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x4b,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x3a,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x2c,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xff,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x28,(int)bar_addr[0]+0x8);
+outb(0x50,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x14);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x88,(int)bar_addr[0]+0x40);
+outb(0x6e,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x7b,(int)bar_addr[0]+0x38);
+outl(0xf0ff,(int)bar_addr[0]+0x44);
+outl(0x1e981000,(int)bar_addr[0]+0x48);
+outb(0x19,(int)bar_addr[0]+0xc);
+outb(0x87,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x1c);
+outb(0x81,(int)bar_addr[0]+0x40);
+outb(0x18,(int)bar_addr[0]+0x40);
+outb(0x40,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x76,(int)bar_addr[0]+0xc);
+outb(0x37,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x12,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x64,(int)bar_addr[0]+0xc);
+
+writeb(0xba, blk->cpu_addr);
+outb(0x10,(int)bar_addr[0]+0x10);
+outb(0xc,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0x56,(int)bar_addr[0]+0x8);
+outb(0x4b,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x18);
+outb(0x5e,(int)bar_addr[0]+0x40);
+readb(blk->cpu_addr);
+outb(0x1f,(int)bar_addr[0]+0x8);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0xc2,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x4,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0xdf,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x6a,(int)bar_addr[0]+0x38);
+outl(0xff,(int)bar_addr[0]+0x44);
+outl(0x1e905018,(int)bar_addr[0]+0x48);
+outb(0x10,(int)bar_addr[0]+0xc);
+outb(0xdd,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x81,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x8,(int)bar_addr[0]+0x40);
+outb(0xb7,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x51,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x12,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x44,(int)bar_addr[0]+0xc);
+
+writeb(0xc4, blk->cpu_addr);
+outb(0xbe,(int)bar_addr[0]+0x10);
+outb(0x21,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+outb(0x43,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x8f,(int)bar_addr[0]+0x40);
+outb(0x5,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0x1a,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x1e,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xfd,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x40,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0x18,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x2,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x40,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x0,(int)bar_addr[0]+0x38);
+outl(0x8047,(int)bar_addr[0]+0x44);
+outl(0x1e8b6502,(int)bar_addr[0]+0x48);
+outb(0x4a,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0xc1,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x20,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x87,(int)bar_addr[0]+0xc);
+outb(0x4d,(int)bar_addr[0]+0xc);
+outb(0x4c,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x12,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x44,(int)bar_addr[0]+0xc);
+
+writeb(0xd0, blk->cpu_addr);
+writeb(0x12, blk->cpu_addr);
+writeb(0x0, blk->cpu_addr);
+writeb(0x10, blk->cpu_addr);
+writeb(0x40, blk->cpu_addr);
+writeb(0x24, blk->cpu_addr);
+outb(0x42,(int)bar_addr[0]+0x10);
+outb(0x1,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xd0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x1a,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x20,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x92,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x84,(int)bar_addr[0]+0x8);
+outb(0x62,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x98,(int)bar_addr[0]+0x40);
+outb(0x24,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x0,(int)bar_addr[0]+0x38);
+outl(0x24,(int)bar_addr[0]+0x44);
+outl(0x1f76e000,(int)bar_addr[0]+0x48);
+outb(0x90,(int)bar_addr[0]+0xc);
+outb(0x83,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x81,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0xc8,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x12,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x44,(int)bar_addr[0]+0xc);
+
+writeb(0xc2, blk->cpu_addr);
+writeb(0x16, blk->cpu_addr);
+writeb(0xe0, blk->cpu_addr);
+writeb(0x10, blk->cpu_addr);
+writeb(0x10, blk->cpu_addr);
+writeb(0x36, blk->cpu_addr);
+writeb(0xdc, blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x10);
+outb(0x1,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0x80,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x10,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x8b,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x2,(int)bar_addr[0]+0x8);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x24,(int)bar_addr[0]+0x8);
+outb(0xc0,(int)bar_addr[0]+0x8);
+outb(0x62,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0xcb,(int)bar_addr[0]+0x40);
+outb(0xa0,(int)bar_addr[0]+0x40);
+outb(0x4,(int)bar_addr[0]+0x0);
+outb(0xa,(int)bar_addr[0]+0x4);
+outb(0xc1,(int)bar_addr[0]+0x38);
+outl(0x62976c3,(int)bar_addr[0]+0x44);
+outl(0x176e024,(int)bar_addr[0]+0x48);
+outb(0x6b,(int)bar_addr[0]+0xc);
+outb(0x83,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x81,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x0,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x41,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x72,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+outb(0x44,(int)bar_addr[0]+0xc);
+
+writeb(0xd0, blk->cpu_addr);
+writeb(0xab, blk->cpu_addr);
+writeb(0x0, blk->cpu_addr);
+writeb(0x40, blk->cpu_addr);
+writeb(0x0, blk->cpu_addr);
+writeb(0x24, blk->cpu_addr);
+writeb(0x9d, blk->cpu_addr);
+outb(0x41,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x12,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xee,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0x42,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x0,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x24,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x0,(int)bar_addr[0]+0x38);
+outl(0x2c,(int)bar_addr[0]+0x44);
+outb(0x98,(int)bar_addr[0]+0xc);
+outb(0x83,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0xc1,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x90,(int)bar_addr[0]+0x40);
+outb(0x7d,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x3,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x31,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x10,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x19,(int)bar_addr[0]+0xc);
+
+writeb(0x2, blk->cpu_addr);
+writeb(0x0, blk->cpu_addr);
+writeb(0x5b, blk->cpu_addr);
+writeb(0x10, blk->cpu_addr);
+writeb(0x24, blk->cpu_addr);
+writeb(0xea, blk->cpu_addr);
+outb(0x74,(int)bar_addr[0]+0x10);
+outb(0x5,(int)bar_addr[0]+0xc);
+outb(0xb,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xda,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+readb(blk->cpu_addr);
+outb(0x40,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x7c,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x5d,(int)bar_addr[0]+0x8);
+outb(0x42,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x14,(int)bar_addr[0]+0x40);
+outb(0xc0,(int)bar_addr[0]+0x40);
+outb(0x24,(int)bar_addr[0]+0x0);
+outb(0xd4,(int)bar_addr[0]+0x4);
+outb(0x0,(int)bar_addr[0]+0x38);
+outl(0x60024,(int)bar_addr[0]+0x44);
+outl(0x1f76e027,(int)bar_addr[0]+0x48);
+outb(0x90,(int)bar_addr[0]+0xc);
+outb(0x7,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x22,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x43,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0xfd,(int)bar_addr[0]+0xc);
+outb(0x81,(int)bar_addr[0]+0xc);
+outb(0x11,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x12,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x44,(int)bar_addr[0]+0xc);
+
+writeb(0xc0, blk->cpu_addr);
+outb(0x1,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+outb(0x51,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x18);
+outb(0x4,(int)bar_addr[0]+0x40);
+outb(0x21,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0x12,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x2,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x40,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x24,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0x30,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x2,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0xa6,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x8,(int)bar_addr[0]+0x38);
+outl(0x70f024,(int)bar_addr[0]+0x44);
+outb(0x9d,(int)bar_addr[0]+0xc);
+outb(0x81,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x81,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x60,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x3d,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+outb(0x12,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x84,(int)bar_addr[0]+0xc);
+
+writeb(0x10, blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x10);
+outb(0x7b,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+outb(0x43,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x0,(int)bar_addr[0]+0x40);
+outb(0x2,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0x21,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xd2,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x20,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x6c,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0x30,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x14);
+outb(0x0,(int)bar_addr[0]+0x40);
+outb(0x7,(int)bar_addr[0]+0x40);
+outb(0xff,(int)bar_addr[0]+0x0);
+outb(0x4,(int)bar_addr[0]+0x4);
+outb(0x4b,(int)bar_addr[0]+0x38);
+outl(0x21b618a3,(int)bar_addr[0]+0x44);
+outl(0x1e981004,(int)bar_addr[0]+0x48);
+outb(0x10,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+outb(0x85,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x15,(int)bar_addr[0]+0xc);
+outb(0xc7,(int)bar_addr[0]+0xc);
+outb(0x15,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x44,(int)bar_addr[0]+0xc);
+
+writeb(0xc0, blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x10);
+outb(0x50,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc2,(int)bar_addr[0]+0x8);
+outb(0x47,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0xc9,(int)bar_addr[0]+0x40);
+outb(0x1,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0x12,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x1,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x4,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xfb,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0x10,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x0,(int)bar_addr[0]+0x40);
+outb(0x74,(int)bar_addr[0]+0x40);
+outb(0xdf,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x0,(int)bar_addr[0]+0x38);
+outl(0x2ba81723,(int)bar_addr[0]+0x44);
+outl(0x1e989000,(int)bar_addr[0]+0x48);
+outb(0x90,(int)bar_addr[0]+0xc);
+outb(0xa3,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x81,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x88,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x77,(int)bar_addr[0]+0xc);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x6c,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x16,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x54,(int)bar_addr[0]+0xc);
+
+writeb(0xc0, blk->cpu_addr);
+outb(0x10,(int)bar_addr[0]+0x10);
+outb(0xa6,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+outb(0x43,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x2,(int)bar_addr[0]+0x40);
+readb(blk->cpu_addr);
+outb(0x12,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x1,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x55,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x10,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x9e,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xd3,(int)bar_addr[0]+0x8);
+outb(0x10,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x0,(int)bar_addr[0]+0x40);
+outb(0xcb,(int)bar_addr[0]+0x40);
+outb(0xef,(int)bar_addr[0]+0x0);
+outb(0x0,(int)bar_addr[0]+0x4);
+outb(0x0,(int)bar_addr[0]+0x38);
+outl(0x3f63f503,(int)bar_addr[0]+0x44);
+outl(0x3e981000,(int)bar_addr[0]+0x48);
+outb(0x12,(int)bar_addr[0]+0xc);
+outb(0xef,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x89,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0x63,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x8b,(int)bar_addr[0]+0xc);
+outb(0x21,(int)bar_addr[0]+0xc);
+outb(0x91,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0xad,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+
+writeb(0xc0, blk->cpu_addr);
+writeb(0x12, blk->cpu_addr);
+writeb(0x0, blk->cpu_addr);
+writeb(0xf3, blk->cpu_addr);
+writeb(0x0, blk->cpu_addr);
+writeb(0x24, blk->cpu_addr);
+writeb(0x0, blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x10);
+outb(0x1,(int)bar_addr[0]+0xc);
+readb(blk->cpu_addr);
+outb(0xc0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x12,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x8,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0xb0,(int)bar_addr[0]+0x8);
+readb(blk->cpu_addr);
+outb(0x0,(int)bar_addr[0]+0x8);
+outb(0x42,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x18);
+outb(0x2,(int)bar_addr[0]+0x40);
+outb(0x80,(int)bar_addr[0]+0x40);
+outb(0xde,(int)bar_addr[0]+0x0);
+outb(0x20,(int)bar_addr[0]+0x4);
+outb(0x0,(int)bar_addr[0]+0x38);
+outl(0x24,(int)bar_addr[0]+0x44);
+outl(0x1f7ae000,(int)bar_addr[0]+0x48);
+outb(0x90,(int)bar_addr[0]+0xc);
+outb(0x83,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x1c);
+outb(0x81,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x54);
+outb(0x4a,(int)bar_addr[0]+0x40);
+outb(0x0,(int)bar_addr[0]+0x40);
+inb((int)bar_addr[0]+0x1c);
+outb(0x1,(int)bar_addr[0]+0xc);
+outb(0x41,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+inb((int)bar_addr[0]+0x8);
+inb((int)bar_addr[0]+0x8);
+outb(0x12,(int)bar_addr[0]+0xc);
+inb((int)bar_addr[0]+0x54);
+inb((int)bar_addr[0]+0x10);
+inb((int)bar_addr[0]+0x18);
+inb((int)bar_addr[0]+0x14);
+outb(0x44,(int)bar_addr[0]+0xc);
+pdev = pci_get_device(0x1022,0x2020,NULL);
+blk = get_DMA_blk(0x1e94b000);
+dma_free_coherent(&(pdev->dev), 0x1000, blk->cpu_addr, blk->dma_handle);
+
+
+        printk(KERN_INFO "[%s] REPRO END\n",__FUNCTION__);
         return 0;
 }
 
@@ -3366,20 +1341,12 @@ int suppress_drivers(void)
 
 static int __init init_mymod(void)
 {
-        printk(KERN_ALERT "###| [INFO] mymod inserted!\n");
+        printk(KERN_ALERT "###| [%s] mymod inserted!\n",__FUNCTION__);
 
-        add_DMA_blk(0,0x1111,0);
-        add_DMA_blk(0,0x2222,0);
-        add_DMA_blk(0,0x3333,0);
-
-        print_DMA_blks();
-
-        /*
         enum_dev();
         suppress_drivers();
         repro();
         native_irq_enable();
-         * */
 
         return 0;
 }
@@ -3387,7 +1354,7 @@ static int __init init_mymod(void)
 static void __exit exit_mymod(void)
 {
         remove_dev_list();
-        printk(KERN_ALERT "mymod exited!\n");
+        printk(KERN_ALERT "###| [%s] mymod exited!\n",__FUNCTION__);
 }
 
 module_init(init_mymod);

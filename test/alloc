@@ -1,0 +1,52 @@
+pdev = pci_get_device(8086,7010,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1ea29000,dma_handle);
+
+pdev = pci_get_device(1274,5000,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eb80000,dma_handle);
+
+pdev = pci_get_device(1274,5000,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eb81000,dma_handle);
+
+pdev = pci_get_device(1274,5000,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eb82000,dma_handle);
+
+pdev = pci_get_device(1274,5000,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eb83000,dma_handle);
+
+pdev = pci_get_device(8086,10d3,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1c5ce000,dma_handle);
+
+pdev = pci_get_device(8086,10d3,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1c439000,dma_handle);
+
+pdev = pci_get_device(8086,293a,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eaab000,dma_handle);
+
+pdev = pci_get_device(8086,293a,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eaac000,dma_handle);
+
+pdev = pci_get_device(8086,2934,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eacb000,dma_handle);
+
+pdev = pci_get_device(8086,2934,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eacc000,dma_handle);
+
+pdev = pci_get_device(8086,2934,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1eaca000,dma_handle);
+
+pdev = pci_get_device(8086,7010,NULL);
+cpu_addr = dma_alloc_coherent(pdev->dev,0x1000, &dma_handle, GFP_KERNEL);
+add_DMA_blk(cpu_addr,1ea2c000,dma_handle);
+
