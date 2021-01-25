@@ -1,17 +1,38 @@
 #!/bin/bash
 
+PWD=`pwd -P`
+PRJ_PATH="~/Desktop/hypervisor-fuzz"
+SRC_PATH="$PRJ_PATH/src"
+LOG=$PWD/$1
+ARGERR=0
+
 set -e
 echo "##|"
-if [ -z $1 ];then
-    echo "##| [ERR ] no argument!"
-    echo "##| [INFO] USAGE: $./script.sh 'relative-path-to-log-file'"
-    echo "##| [ERR ] TERMINATING..."
-    echo "##|"
-    exit 1
-fi
 
-PWD=`pwd -P`
-LOG=$PWD/$1
+# argument check
+if [ -z $1 ];then
+  echo "##| [ERR ] no argument!"
+  ARGERR=1
+fi
+if [ ! -z $3 ];then
+  echo "##| [ERR ] too many arguments!"
+  ARGERR=1
+elif [ "$2" == "-dbg" ];then
+  echo "##| [INFO] DEBUG MODE"
+  echo "##|"
+elif [ ! -z $2 ];then
+  echo "##| [ERR ] wrong option!"
+  ARGERR=1
+fi
+if [ $ARGERR -eq 1 ];then
+  echo "##| [INFO] USAGE: $./script.sh 'relative-path-to-log-file'"
+  echo "##|               or"
+  echo "##|               $./script.sh 'relative-path-to-log-file' -dbg"
+  echo "##|               for debugging"
+  echo "##| [ERR ] TERMINATING..."
+  echo "##|"
+  exit 1
+fi
 
 # log file existence check
 if [ ! -f $LOG ];then
@@ -22,14 +43,8 @@ if [ ! -f $LOG ];then
 fi
 
 # directory existence check
-if [ ! -d "$PWD/parseroom" ];then
-    mkdir parseroom
-fi
-if [ ! -d "$PWD/mergeroom" ];then
-    mkdir mergeroom
-fi
-if [ ! -d "$PWD/compileroom" ];then
-    mkdir compileroom
+if [ ! -d "$PWD/dbg" ];then
+    mkdir dbg
 fi
 
 
@@ -45,10 +60,10 @@ if [ ! -f $PWD/src/parser.c ];then
     echo "##|"
     exit 1
 fi
-gcc $PWD/src/parser.c -o $PWD/parseroom/parser -lm
+gcc $PWD/src/parser.c -o $PWD/dbg/parser -lm
 # parse
 echo "##| [INFO] parsing.."
-$PWD/parseroom/parser $LOG > $PWD/mergeroom/repro
+$PWD/dbg/parser $LOG > $PWD/dbg/repro
 
 # execution exit status check
 if [ $? -ne 0 ];then
@@ -73,7 +88,7 @@ if [ ! -f $PWD/src/merger.c ];then
     echo "##|"
     exit 1
 fi
-gcc $PWD/src/merger.c -o $PWD/mergeroom/merger
+gcc $PWD/src/merger.c -o $PWD/dbg/merger
 
 # template existence check
 if [ ! -f $PWD/src/template.c ];then
@@ -81,11 +96,11 @@ if [ ! -f $PWD/src/template.c ];then
     echo "##| [ERR ] TERMINATING..."
     exit 1
 fi
-cp $PWD/src/template.c $PWD/mergeroom/template
+cp $PWD/src/template.c $PWD/dbg/template
 
 # merge
 echo "##| [INFO] merging.."
-$PWD/mergeroom/merger $PWD/mergeroom/template $PWD/mergeroom/repro $PWD/compileroom/mod.c
+$PWD/dbg/merger $PWD/dbg/template $PWD/dbg/repro $PWD/dbg/mod.c
 
 # execution exit status check
 if [ $? -ne 0 ];then
@@ -108,8 +123,8 @@ if [ ! -f $PWD/src/Makefile ];then
     echo "##| [ERR ] TERMINATING..."
     exit 1
 fi
-cp $PWD/src/Makefile $PWD/compileroom/
-cd $PWD/compileroom/
+cp $PWD/src/Makefile $PWD/dbg
+cd $PWD/dbg
 
 # compile
 echo "##| [INFO] compiling.."
@@ -122,16 +137,19 @@ if [ $? -ne 0 ];then
     echo "##| [ERR ] TERMINATING..."
     exit 1
 fi
-scp -P2345 -i ~/Desktop/hypervisor-fuzz/src/image/stretch.id_rsa mod.ko root@localhost:~/ > /dev/null
 
-# execution exit status check
-if [ $? -ne 0 ];then
-    echo "##| [ERR ] compile failed (scp)"
-    echo "##| [ERR ] TERMINATING..."
-    exit 1
-fi
+# remove files except mod.ko
+mv $PWD/mod.ko $PWD/..
 make clean > /dev/null
+cd $PWD/..
+if [ -z $2 ];then
+  rm dbg -rf
+fi
 
+scp -P2345 -i $SRC_PATH/image/stretch.id_rsa mod.ko root@localhost:~/ > /dev/null
+if [ -z $2 ];then
+  rm mod.ko
+fi
 
 # execution exit status check
 if [ $? -ne 0 ];then
@@ -141,5 +159,4 @@ if [ $? -ne 0 ];then
 fi
 echo "##| [INFO] COMPILE DONE."
 echo "##|"
-
 

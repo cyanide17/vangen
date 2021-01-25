@@ -35,8 +35,7 @@ struct dev{
         struct list_head    node;
 };
 
-typedef struct _DMA_block
-{
+typedef struct _DMA_block{
         void *cpu_addr;
         unsigned int log_addr;
         dma_addr_t dma_handle;
@@ -309,7 +308,7 @@ int repro(void)
 }
 
 // [WHY] linux kernel variable.
-// search "pnp_global" at System.map
+// search "pnp_global" at System.map and insert the value
 struct list_head* list_pnp_head = (struct list_head*)(0xc1e46be4);
 
 
