@@ -24,10 +24,9 @@ static LIST_HEAD(DMA_blks_head);
 struct dev_cfg{
         unsigned int        vendor;
         unsigned int        device;
-        resource_size_t     BAR[6];
+        int                 BAR[6];
         int                 BARtype[6]; // 0:MMIO 1:PMIO
         unsigned long       BARsize[6];
-        void __iomem*       virtBAR[6];
         int                 BAR_isvalid[6];
 };
 
@@ -106,7 +105,6 @@ void print_dev_list(void)
                                 printk(KERN_INFO "| BAR[%d]=%x\n",i,dev->cfg.BAR[i]);
                                 if(dev->cfg.BARtype[i]==MMIO){
                                         printk(KERN_INFO "| type:MMIO\n");
-                                        printk(KERN_INFO "| virtBAR[%d]=%p\n",i,dev->cfg.virtBAR[i]);
                                 }else{
                                         printk(KERN_INFO "| type:PMIO\n");
                                 }
@@ -144,7 +142,7 @@ int add_dev_list(struct dev* dev,int bar_idx)
         new_dev->cfg.BAR[bar_idx] = dev->cfg.BAR[bar_idx];
         new_dev->cfg.BARsize[bar_idx] = dev->cfg.BARsize[bar_idx];
         if(dev->cfg.BARtype[bar_idx] == MMIO){
-                new_dev->cfg.virtBAR[bar_idx] = ioremap(dev->cfg.BAR[bar_idx],dev->cfg.BARsize[bar_idx]);
+                new_dev->cfg.BAR[bar_idx] = (int)ioremap(dev->cfg.BAR[bar_idx],dev->cfg.BARsize[bar_idx]);
                 new_dev->cfg.BARtype[bar_idx] = MMIO;
         }else{
                 new_dev->cfg.BARtype[bar_idx] = PMIO;
@@ -165,8 +163,8 @@ void remove_dev_list(void)
                 printk(KERN_INFO "###| [%s] removing (%x,%x)\n",__FUNCTION__,dev->cfg.vendor,dev->cfg.device);
                 for(i=0;i<6;i++){
                         if((dev->cfg.BAR_isvalid[i]==true)&&(dev->cfg.BARtype[i]==MMIO)){
-                                printk(KERN_INFO "###| [%s] unmapping virtBAR[%d]:%p\n",__FUNCTION__,i,dev->cfg.virtBAR[i]);
-                                iounmap(dev->cfg.virtBAR[i]);
+                                printk(KERN_INFO "###| [%s] unmapping BAR[%d]:%d\n",__FUNCTION__,i,dev->cfg.BAR[i]);
+                                iounmap((void __iomem*)dev->cfg.BAR[i]);
                         }
                 }
                 list_del(node);

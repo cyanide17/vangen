@@ -93,10 +93,7 @@ int main(int argc, char** argv)
 
     log = (void*)(buffer + offset);
 	LIST_INIT(&DMA_blks);
-    for(; log->op_type != OPTYPE_NONE; offset+=size) {
-        /*
-        ** first iteration
-        */
+    for(; log->op_type != OPTYPE_NONE; offset+=size) { // DMA allocation
 
         if((log->op_type == OPTYPE_DMA)&&(log->is_alloc == 0)&&(log->is_free == 0))
         {
@@ -135,20 +132,13 @@ int main(int argc, char** argv)
     for(; log->op_type != OPTYPE_NONE; offset+=size) {
         if((log->is_pci > 0)&&(log->op_type != OPTYPE_NEXT))
         {
-            if(vid == -1)
+            if((vid == -1) || (vid != log->vendor))
             {
-                // initial set
+                // initial set || device changed
                 vid = log->vendor;
                 did = log->device;
                 printf("dev = load_bar(0x%x,0x%x);\n",vid,did);
-                printf("memcpy(bar_addr,dev->cfg.virtBAR,sizeof(bar_addr));\n");
-            }else if(vid != log->vendor)
-            {
-                // device changed
-                vid = log->vendor;
-                did = log->device;
-                printf("dev = load_bar(0x%x,0x%x);\n",vid,did);
-                printf("memcpy(bar_addr,dev->cfg.virtBAR,sizeof(bar_addr));\n");
+                printf("memcpy(bar_addr,dev->cfg.BAR,sizeof(bar_addr));\n");
             }
         }
 
@@ -192,7 +182,7 @@ int main(int argc, char** argv)
                     }
                 }
                 break;
-            case OPTYPE_DMA: // DMA
+            case OPTYPE_DMA:
                 dma_exists = 1;
                 if((log->is_alloc == 0) && (log->is_free == 0))
                 {
@@ -273,9 +263,9 @@ void printf_readin(uint16_t op_type, uint16_t is_pci,uint16_t bar_idx,uint32_t a
     if(is_pci)
     {
         if(op_type == OPTYPE_PIO)
-            printf("((int)bar_addr[%d]+0x%x);\n", bar_idx, addr);
+            printf("((resource_size_t)bar_addr[%d]+0x%x);\n", bar_idx, addr);
         else
-            printf("(bar_addr[%d]+0x%x);\n", bar_idx, addr);
+            printf("((void __iomem*)bar_addr[%d]+0x%x);\n", bar_idx, addr);
     }else
     {
         printf("(0x%x);\n", addr);
@@ -286,9 +276,9 @@ void printf_writeout(uint16_t op_type, uint16_t is_pci,uint32_t val,uint16_t bar
     if(is_pci)
     {
         if(op_type == OPTYPE_PIO)
-            printf("(0x%x,(int)bar_addr[%d]+0x%x);\n", val, bar_idx, addr);
+            printf("(0x%x,(resource_size_t)bar_addr[%d]+0x%x);\n", val, bar_idx, addr);
         else
-            printf("(0x%x, bar_addr[%d]+0x%x);\n", val, bar_idx, addr);
+            printf("(0x%x,(void __iomem*)bar_addr[%d]+0x%x);\n", val, bar_idx, addr);
     }else
     {
         printf("(0x%x,0x%x);\n", val, addr);
@@ -318,7 +308,7 @@ void printf_dyanamic_writeout(uint16_t op_type, int op_size, uint16_t is_pci,uin
         else
             printf("(0x%x,",val);
         if(is_pci)
-            printf("(int)bar_addr[%d]+0x%x);\n", bar_idx, addr);
+            printf("(resource_size_t)bar_addr[%d]+0x%x);\n", bar_idx, addr);
         else
             printf("0x%x);\n", addr);
     }
@@ -330,7 +320,7 @@ void printf_dyanamic_writeout(uint16_t op_type, int op_size, uint16_t is_pci,uin
         else
             printf("(0x%x,",val);
         if(is_pci)
-            printf("bar_addr[%d]+0x%x);\n", bar_idx, addr);
+            printf("(void __iomem*)bar_addr[%d]+0x%x);\n", bar_idx, addr);
         else
             printf("0x%x);\n", addr);
     }
