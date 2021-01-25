@@ -24,18 +24,22 @@ if [ ! -f $LOG ];then
 fi
 
 # directory existence check
-
 if [ ! -d "$PWD/parseroom" ];then
     mkdir parseroom
-
-
-
+fi
+if [ ! -d "$PWD/mergeroom" ];then
+    mkdir mergeroom
+fi
+if [ ! -d "$PWD/compileroom" ];then
+    mkdir compileroom
+fi
 
 # ===========
 #   PARSING
 # ===========
 
 echo "###| [INFO] = PARSING ="
+
 
 # binary file recompile
 if [ ! -f $PWD/src/parser.c ];then
@@ -71,7 +75,7 @@ if [ $? -ne 0 ];then
     exit 1
 fi
 
-echo "###| [INFO] PARSE DONE"
+echo "###| [INFO] PARSE DONE."
 echo "###|"
 
 
@@ -80,6 +84,7 @@ echo "###|"
 # ===========
 
 echo "###| [INFO] = MERGING ="
+
 
 # binary file recompile
 if [ ! -f $PWD/src/merger.c ];then
@@ -121,7 +126,7 @@ if [ $? -ne 0 ];then
     exit 1
 fi
 
-echo "###| [INFO] MERGE DONE"
+echo "###| [INFO] MERGE DONE."
 echo "###|"
 
 
@@ -130,6 +135,7 @@ echo "###|"
 # ===========
 
 echo "###| [INFO] = COMPILING ="
+
 
 # Makefile existence check
 if [ ! -f $PWD/src/Makefile ];then
@@ -156,8 +162,19 @@ echo -ne "\n"
 
 make clean > /dev/null
 make > /dev/null
-scp -P2345 -i ~/Desktop/hypervisor-fuzz/src/image/stretch.id_rsa mod.ko root@localhost:~/ >> /dev/null
-make clean > /dev/null
+# execution exit status check
+if [ $? -ne 0 ];then
+    echo "###| [ERR ] COMPILE FAILED (make)"
+    echo "###| [ERR ] TERMINATING..."
+    exit 1
+fi
+scp -P2345 -i ~/Desktop/hypervisor-fuzz/src/image/stretch.id_rsa mod.ko root@localhost:~/ > /dev/null
+# execution exit status check
+if [ $? -ne 0 ];then
+    echo "###| [ERR ] COMPILE FAILED (scp)"
+    echo "###| [ERR ] TERMINATING..."
+    exit 1
+fi
 
 
 
@@ -173,7 +190,7 @@ if [ $? -ne 0 ];then
     exit 1
 fi
 
-echo "###| [INFO] COMPILE DONE"
+echo "###| [INFO] COMPILE DONE."
 
 echo "###|"
 

@@ -36,6 +36,12 @@ int main(int argc, char** argv)
 	char *buffer;
 	size_t remain;
 
+        /*
+         * will be removed later..
+         */
+        unsigned int vid=-1;
+        unsigned int did=-1;
+
 	FILE *fp = fopen(argv[1], "r");
 	if(fp == NULL) {
 		perror("fopen");
@@ -62,18 +68,40 @@ int main(int argc, char** argv)
 	offset += size;
 
         if(log->is_pci>0){
-            printf("vendor = 0x%x;\n",log->vendor);
-            printf("device = 0x%x;\n",log->device);
+            vid = log->vendor;
+            did = log->device;
+            printf("vendor = 0x%x;\n",vid);
+            printf("device = 0x%x;\n",did);
+            printf("@\n");
         }
-        printf("@\n");
 
 	for(; log->op_type != 0x0; offset+=size) {
+            if((vid==-1)&&(log->is_pci>0)){
+                vid = log->vendor;
+                did = log->device;
+                printf("vendor = 0x%x;\n",vid);
+                printf("device = 0x%x;\n",did);
+                printf("@\n");
+            }
+
+
+
 		if(log->op_size == 0)
 			op_size = 1;
 		else if(log->op_size == 1)
 			op_size = 2;
 		else if(log->op_size == 2)
 			op_size = 4;
+
+                if(log->is_pci>0){
+                    if((vid!=log->vendor)||(did!=log->device)){
+                        //printf("offset:%d",offset);
+                        //printf("//!!! DEVICE CHANGED.\n");
+                        log = (void*)(buffer + offset);
+                        continue;
+                    }
+                }
+
 
                 switch(log->op_type) {
                     case 0x1:
@@ -104,33 +132,6 @@ int main(int argc, char** argv)
                         }	
                         break;
                     case 0x2:
-                        /*
-                        if(log->op_rw == 0x0) {
-                            if(op_size == 1)
-                                printf("readb");
-                            else if (op_size == 2)
-                                printf("readw");
-                            else if (op_size == 4)
-                                printf("readl");
-                            if(log->is_pci > 0) {
-                                printf("(bar_addr[%d]+0x%x);\n", log->bar_idx, log->addr);
-                            } else {
-                                //printf("(wrong)\n");
-                            }
-                        } else {
-                            if(op_size == 1)
-                                printf("writeb");
-                            else if (op_size == 2)
-                                printf("writew");
-                            else if (op_size == 4)
-                                printf("writel");
-                            if(log->is_pci > 0) {
-                                printf("(0x%x, bar_addr[%d]+0x%x);\n", log->val, log->bar_idx, log->addr);
-                            } else {
-                                //printf("(wrong)\n");
-                            }
-                        }
-                        */
                         if(log->is_pci>0){
                             if(log->op_rw == 0x0) {
                                 if(op_size == 1)
@@ -153,7 +154,7 @@ int main(int argc, char** argv)
                         }
                         break;
                     case 0x6:{
-                                 printf("\n");
+                                     printf("\n");
                              }
                              break;
                     default:
