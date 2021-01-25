@@ -291,7 +291,6 @@ struct dev* load_bar(unsigned int vendor, unsigned int device){
 
 int repro(void)
 {
-        printk(KERN_INFO "[%s] REPRO START\n",__FUNCTION__);
         void __iomem* bar_addr[6];
         struct dev *dev;
 
@@ -299,6 +298,8 @@ int repro(void)
         dma_addr_t dma_handle;
         struct pci_dev *pdev;
         DMA_blk *blk;
+
+        printk(KERN_INFO "[%s] REPRO START\n",__FUNCTION__);
 
         // @
 

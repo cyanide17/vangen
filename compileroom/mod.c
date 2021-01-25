@@ -299,6 +299,8 @@ int repro(void)
         struct pci_dev *pdev;
         DMA_blk *blk;
 
+        printk(KERN_INFO "[%s] REPRO START\n",__FUNCTION__);
+
         // 
 pdev = pci_get_device(0x8086,0x10d3,NULL);
 cpu_addr = dma_alloc_coherent(&(pdev->dev),0x1000, &dma_handle, GFP_KERNEL);
