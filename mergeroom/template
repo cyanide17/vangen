@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/pnp.h>
 #include <linux/isapnp.h>
+#include <linux/dma-mapping.h>
 
 #define MMIO 0
 #define PMIO 1
@@ -18,6 +19,7 @@
 #define ERR 1
 
 static LIST_HEAD(dev_list_head);
+static LIST_HEAD(DMA_blks_head);
 
 struct dev_cfg{
         unsigned int        vendor;
@@ -33,6 +35,40 @@ struct dev{
         struct list_head    node;
         struct dev_cfg      cfg;
 };
+
+typedef struct _DMA_block
+{
+        void *cpu_addr;
+        unsigned int log_addr;
+        dma_addr_t bus_addr;
+        struct list_head node;
+}DMA_blk;
+
+int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t bus_addr)
+{
+        DMA_blk *new_blk = (DMA_blk *)kzalloc(sizeof(DMA_blk), GFP_KERNEL);
+        if(!new_blk){
+                printk(KERN_ERR "###| [ERR ] memory allocation failed!\n");
+                return 1;
+        }
+        new_blk->cpu_addr = cpu_addr;
+        new_blk->log_addr = log_addr;
+        new_blk->bus_addr = bus_addr;
+
+        INIT_LIST_HEAD(&new_blk->node);
+        list_add_tail(&new_blk->node, &DMA_blks_head);
+
+        return 0;
+}
+
+void print_DMA_blks(void)
+{
+        DMA_blk *blk;
+        printk(KERN_INFO "printing all dma blks\n");
+        list_for_each_entry(blk, &DMA_blks_head, node) {
+                printk(KERN_INFO "0x%x\n",blk->log_addr);
+        }
+}
 
 struct dev* check_dev_list(unsigned int vendor, unsigned int device)
 {
@@ -337,10 +373,18 @@ static int __init init_mymod(void)
 {
         printk(KERN_ALERT "###| [INFO] mymod inserted!\n");
 
+        add_DMA_blk(0,0x1111,0);
+        add_DMA_blk(0,0x2222,0);
+        add_DMA_blk(0,0x3333,0);
+
+        print_DMA_blks();
+
+        /*
         enum_dev();
         suppress_drivers();
         repro();
         native_irq_enable();
+         * */
 
         return 0;
 }
