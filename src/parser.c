@@ -27,10 +27,11 @@ struct op_log {
 
 typedef struct _DMA_block{
 	uint32_t base;
-    uint32_t vendor;
-    uint32_t device;
+    uint32_t vendor; // vendor id for device identification
+    uint32_t device; // device id for device identification
 	LIST_ENTRY(_DMA_block) ptr;
 }DMA_blk;
+
 DMA_blk *create_DMA_blk(uint32_t base, uint32_t vendor, uint32_t device);
 LIST_HEAD(DMA_list,_DMA_block) DMA_blks;
 
@@ -51,9 +52,6 @@ void printf_readin(uint16_t op_type, uint16_t is_pci,uint16_t bar_idx,uint32_t a
 void printf_writeout(uint16_t op_type, uint16_t is_pci,uint32_t val,uint16_t bar_idx,uint32_t addr);
 void printf_dyanamic_writeout(uint16_t op_type, int op_size, uint16_t is_pci, uint32_t val, uint16_t bar_idx, uint32_t addr);
 
-
-
-
 int main(int argc, char** argv)
 {
     int size = sizeof(struct op_log);
@@ -68,7 +66,6 @@ int main(int argc, char** argv)
     int dma_exists = 0;
     uint32_t last_log_addr = -1;
 
-
     FILE *fp = fopen(argv[1], "r");
     if(fp == NULL) {
         perror("fopen");
@@ -77,7 +74,6 @@ int main(int argc, char** argv)
     fseek(fp, 0, SEEK_END);
     lSize = ftell(fp);
     rewind(fp);
-
     buffer = (char*)malloc(sizeof(char) * lSize);
     if (buffer == NULL) {
         fputs("Memory error", stderr);
@@ -88,21 +84,24 @@ int main(int argc, char** argv)
         fputs("Reading error", stderr);
         exit(3);
     }
-
     fread(buffer, sizeof(buffer), 1, fp);
 
-    log = (void*)(buffer + offset);
+
+
+    /*
+     * 1st iteration :
+     * alloc all DMA spaces in advance
+     */
 	LIST_INIT(&DMA_blks);
-    for(; log->op_type != OPTYPE_NONE; offset+=size) { // DMA allocation
-
-        if((log->op_type == OPTYPE_DMA)&&(log->is_alloc == 0)&&(log->is_free == 0))
-        {
-            // dma_read | dma_write
+    log = (void*)(buffer + offset);
+    for(; log->op_type != OPTYPE_NONE; offset+=size){
+        if((log->op_type == OPTYPE_DMA)&&(log->is_alloc == 0)&&(log->is_free == 0)){
+            // if operation is 'DMA_read' or 'DMA_write'
             dma_exists = 1;
-
             int blk_exists = 0;
             int base = (log->addr)&(~0xfff);
 
+            // check if target address of the operation is already allocated
             DMA_blk *blk;
             LIST_FOREACH(blk, &DMA_blks, ptr){
                 if(blk->base == base)
@@ -111,30 +110,45 @@ int main(int argc, char** argv)
                     break;
                 }
             }
-            if(!blk_exists)
-            {
+
+            // if target address of the operation is not allocated
+            if(!blk_exists){
                 DMA_blk *new_blk = create_DMA_blk(base,log->vendor,log->device);
                 LIST_INSERT_HEAD(&DMA_blks,new_blk,ptr);
+
+                // get `struct pci_dev` using vendor & device id
                 printf("pdev = pci_get_device(0x%x,0x%x,NULL);\n",log->vendor,log->device);
+
+                // allocate one page(4KB) for that device
+                // &
+                // get virtual address(cpu_addr) from return value
+                // &
+                // get bus address(dma_handle) by pointer argument
                 printf("cpu_addr = dma_alloc_coherent(&(pdev->dev),0x1000, &dma_handle, GFP_KERNEL);\n");
+
+                // record info. at dynamic kernel list
                 printf("add_DMA_blk(cpu_addr,0x%x,dma_handle);\n",base);
                 printf("\n");
             }
         }
-
         log = (void*)(buffer + offset);
     }
 
 
+    /*
+     * 2nd iteration :
+     * parse operations
+     */
     offset=0;
     log = (void*)(buffer + offset);
     offset += size;
     for(; log->op_type != OPTYPE_NONE; offset+=size) {
-        if((log->is_pci > 0)&&(log->op_type != OPTYPE_NEXT))
-        {
-            if((vid == -1) || (vid != log->vendor))
-            {
-                // initial set || device changed
+        if((log->is_pci > 0)&&(log->op_type != OPTYPE_NEXT)){
+            if((vid == -1) || (vid != log->vendor)){
+                // load BAR addresses of device
+                // if target device is not set (vid == -1)
+                // or
+                // if target device has changed (vid != log->vendor),
                 vid = log->vendor;
                 did = log->device;
                 printf("dev = load_bar(0x%x,0x%x);\n",vid,did);
@@ -143,13 +157,12 @@ int main(int argc, char** argv)
         }
 
         op_size = (int)pow(2,log->op_size);
-
         switch(log->op_type) {
             case OPTYPE_PIO:
                 if(log->op_rw == OPRW_READ) {
                     printf("in");
                     printf_width(op_size);
-                    printf_readin(OPTYPE_PIO,log->is_pci, log->bar_idx, log->addr);
+                    printf_readin(OPTYPE_PIO, log->is_pci, log->bar_idx, log->addr);
 
                 } else {
                     if((log->val>=0x10000000)&&(log->val<=0x1FF00000)&&(((log->val)&0xFFF)==0x000))
