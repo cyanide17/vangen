@@ -381,11 +381,11 @@ int suppress_drivers(void)
 
 
         /* isa devices */
-        /* there is some buggy 
+        /*
         struct pnp_dev *pnpdev;
         list_for_each_entry(pnpdev, list_pnp_head, global_list)
         {
-       
+
                 if(pnpdev!=NULL){
                         printk(KERN_INFO "###| [%s]: PNP_NAME:[%s]\n",__FUNCTION__,pnpdev->name);
                         if(pnpdev->driver!=NULL){
@@ -411,7 +411,7 @@ static int __init init_mymod(void)
         enum_dev();
         suppress_drivers();
         if(repro() < 0)
-          return -1;
+                return -1;
         native_irq_enable();
 
         return 0;

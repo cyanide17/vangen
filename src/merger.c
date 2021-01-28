@@ -49,58 +49,58 @@
  * 
  */
 int main(int argc, char* argv[]) {
-    FILE *fileA, *fileB, *result;
-    char ch0,ch1;
-    int lever;
+        FILE *fileA, *fileB, *result;
+        char ch0,ch1;
+        int lever;
 
-    fileA = fopen(argv[1],"r");
-    fileB = fopen(argv[2],"r");
-    result = fopen(argv[3],"w");
-    lever = 0;
+        fileA = fopen(argv[1],"r");
+        fileB = fopen(argv[2],"r");
+        result = fopen(argv[3],"w");
+        lever = 0;
 
-    if((fileA==NULL)||(fileB==NULL)||(result==NULL)){
-        if(fileA==NULL){
-            printf("fileA open error\n");
-        }else if(fileB==NULL){
-            printf("fileB open error\n");
-        }else{
-            printf("result open error\n");
+        if((fileA==NULL)||(fileB==NULL)||(result==NULL)){
+                if(fileA==NULL){
+                        printf("fileA open error\n");
+                }else if(fileB==NULL){
+                        printf("fileB open error\n");
+                }else{
+                        printf("result open error\n");
+                }
+                return -1;
         }
-        return -1;
-    }
 
-    while(1){
-        if(lever==0){
-            ch0 = fgetc(fileA);
-            if(ch0==EOF){
-                lever=1;
-            }else if(ch0=='@'){
-                ch0 = fgetc(fileA);
-                lever=1;
-                fputc('\n',result);
-            }else{
-                fputc(ch0,result);
-            }
-        }else{
-            ch1 = fgetc(fileB);
-            if(ch1==EOF){
-                lever=0;
-            }else if(ch1=='@'){
-                ch1 = fgetc(fileB);
-                lever=0;
-                fputc('\n',result);
-            }else{
-                fputc(ch1,result);
-            }
-        }
-        if((ch0==EOF)&&(ch1==EOF)){
-            break;
-        }
-        
-    }
+        while(1){
+                if(lever==0){
+                        ch0 = fgetc(fileA);
+                        if(ch0==EOF){
+                                lever=1;
+                        }else if(ch0=='@'){
+                                ch0 = fgetc(fileA);
+                                lever=1;
+                                fputc('\n',result);
+                        }else{
+                                fputc(ch0,result);
+                        }
+                }else{
+                        ch1 = fgetc(fileB);
+                        if(ch1==EOF){
+                                lever=0;
+                        }else if(ch1=='@'){
+                                ch1 = fgetc(fileB);
+                                lever=0;
+                                fputc('\n',result);
+                        }else{
+                                fputc(ch1,result);
+                        }
+                }
+                if((ch0==EOF)&&(ch1==EOF)){
+                        break;
+                }
 
-    fclose(fileA);
-    fclose(fileB);
-    fclose(result);
-    return 0;
+        }
+
+        fclose(fileA);
+        fclose(fileB);
+        fclose(result);
+        return 0;
 }
