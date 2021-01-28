@@ -1,5 +1,5 @@
 # Vangen
-Vangen is a simple, machine-agnostic, deterministic  crash reproducing utility for [ir0nc0w](https://github.com/ir0nc0w)/[hypervisor-fuzz](https://github.com/ir0nc0w/hypervisor-fuzz) (_private_)
+Vangen is a simple, machine-agnostic, deterministic  crash reproducing utility for [ir0nc0w](https://github.com/ir0nc0w)/[hypervisor-fuzz](https://github.com/ir0nc0w/hypervisor-fuzz) (_currently private_)
 > Vangen enables you to reproduce crash on **van**illa linux by providing kernel module **gen**erated from test case.
 
 ## Prerequisites
