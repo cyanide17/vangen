@@ -51,9 +51,9 @@ LIST_HEAD(DMA_list,_DMA_block) DMA_blks;
 #define OPRW_WRITE 0x1
 
 void printf_width(int op_size);
-void printf_readin(uint16_t op_type, uint16_t is_pci,uint16_t bar_idx,uint32_t addr);
-void printf_writeout(uint16_t op_type, uint16_t is_pci,uint32_t val,uint16_t bar_idx,uint32_t addr);
-void printf_dyanamic_writeout(uint16_t op_type, int op_size, uint16_t is_pci, uint32_t val, uint16_t bar_idx, uint32_t addr);
+void printf_readin(struct op_log *log);
+void printf_writeout(struct op_log *log);
+void printf_dyanamic_writeout(struct op_log *log);
 void parse(struct op_log *log);
 
 int main(int argc, char** argv)
@@ -200,15 +200,19 @@ void parse(struct op_log *log)
             if(log->op_rw == OPRW_READ){
                 printf("in");
                 printf_width(op_size);
-                printf_readin(OPTYPE_PIO, log->is_pci, log->bar_idx, log->addr);
-            } else{
+                printf_readin(log);
+            } else if(log->op_rw == OPRW_WRITE){
                 if((log->val>=DMASTART)&&(log->val<=DMASTOP)&&(((log->val)&0xFFF)==0x000))
-                    printf_dyanamic_writeout(OPTYPE_PIO, op_size, log->is_pci, log->val, log->bar_idx, log->addr);
+                    printf_dyanamic_writeout(log);
                 else{
                     printf("out");
                     printf_width(op_size);
-                    printf_writeout(OPTYPE_PIO, log->is_pci, log->val, log->bar_idx, log->addr);
+                    printf_writeout(log);
                 }
+            } else{
+                printf("//err");
+                printf("return -1");
+                break;
             }
             break;
         case OPTYPE_MMIO:
@@ -216,15 +220,19 @@ void parse(struct op_log *log)
                 if(log->op_rw == OPRW_READ){
                     printf("read");
                     printf_width(op_size);
-                    printf_readin(OPTYPE_MMIO, log->is_pci, log->bar_idx, log->addr);
-                } else{
+                    printf_readin(log);
+                } else if(log->op_rw == OPRW_WRITE){
                     if((log->val>=DMASTART)&&(log->val<=DMASTOP)&&(((log->val)&0xFFF)==0x000))
-                        printf_dyanamic_writeout(OPTYPE_MMIO, op_size, log->is_pci, log->val, log->bar_idx, log->addr);
+                        printf_dyanamic_writeout(log);
                     else{
                         printf("write");
                         printf_width(op_size);
-                        printf_writeout(OPTYPE_MMIO, log->is_pci, log->val, log->bar_idx, log->addr);
+                        printf_writeout(log);
                     }
+                } else{
+                    printf("//err");
+                    printf("return -1");
+                    break;
                 }
             }
             break;
@@ -277,36 +285,36 @@ void printf_width(int op_size)
         printf("l");
 }
 
-void printf_readin(uint16_t op_type, uint16_t is_pci,uint16_t bar_idx,uint32_t addr)
+void printf_readin(struct op_log *log)
 {
-    if(is_pci)
+    if(log->is_pci)
     {
-        if(op_type == OPTYPE_PIO)
-            printf("((resource_size_t)bar_addr[%d]+0x%x);\n", bar_idx, addr);
+        if(log->op_type == OPTYPE_PIO)
+            printf("((resource_size_t)bar_addr[%d]+0x%x);\n", log->bar_idx, log->addr);
         else
-            printf("((void __iomem*)bar_addr[%d]+0x%x);\n", bar_idx, addr);
+            printf("((void __iomem*)bar_addr[%d]+0x%x);\n", log->bar_idx, log->addr);
     }else
     {
-        printf("(0x%x);\n", addr);
+        printf("(0x%x);\n", log->addr);
     }
 }
-void printf_writeout(uint16_t op_type, uint16_t is_pci,uint32_t val,uint16_t bar_idx,uint32_t addr)
+void printf_writeout(struct op_log *log)
 {
-    if(is_pci)
+    if(log->is_pci)
     {
-        if(op_type == OPTYPE_PIO)
-            printf("(0x%x,(resource_size_t)bar_addr[%d]+0x%x);\n", val, bar_idx, addr);
+        if(log->op_type == OPTYPE_PIO)
+            printf("(0x%x,(resource_size_t)bar_addr[%d]+0x%x);\n", log->val, log->bar_idx, log->addr);
         else
-            printf("(0x%x,(void __iomem*)bar_addr[%d]+0x%x);\n", val, bar_idx, addr);
+            printf("(0x%x,(void __iomem*)bar_addr[%d]+0x%x);\n", log->val, log->bar_idx, log->addr);
     }else
     {
-        printf("(0x%x,0x%x);\n", val, addr);
+        printf("(0x%x,0x%x);\n", log->val, log->addr);
     }
 }
 
-void printf_dyanamic_writeout(uint16_t op_type, int op_size, uint16_t is_pci,uint32_t val,uint16_t bar_idx,uint32_t addr)
+void printf_dyanamic_writeout(struct op_log *log)
 {
-    int base = val&(~0xFFF);
+    int base = (log->val)&(~0xFFF);
     int is_dma_handle = 0;
     DMA_blk *blk;
 
@@ -318,30 +326,30 @@ void printf_dyanamic_writeout(uint16_t op_type, int op_size, uint16_t is_pci,uin
         }
     }
 
-    if(op_type == OPTYPE_PIO){
+    if(log->op_type == OPTYPE_PIO){
         printf("out");
-        printf_width(op_size);
+        printf_width(log->op_size);
 
         if(is_dma_handle)
             printf("(blk->dma_handle,");
         else
-            printf("(0x%x,",val);
-        if(is_pci)
-            printf("(resource_size_t)bar_addr[%d]+0x%x);\n", bar_idx, addr);
+            printf("(0x%x,",log->val);
+        if(log->is_pci)
+            printf("(resource_size_t)bar_addr[%d]+0x%x);\n", log->bar_idx, log->addr);
         else
-            printf("0x%x);\n", addr);
+            printf("0x%x);\n", log->addr);
     }
     else{
         printf("write");
-        printf_width(op_size);
+        printf_width(log->op_size);
         if(is_dma_handle)
             printf("(blk->dma_handle,");
         else
-            printf("(0x%x,",val);
-        if(is_pci)
-            printf("(void __iomem*)bar_addr[%d]+0x%x);\n", bar_idx, addr);
+            printf("(0x%x,",log->val);
+        if(log->is_pci)
+            printf("(void __iomem*)bar_addr[%d]+0x%x);\n", log->bar_idx, log->addr);
         else
-            printf("0x%x);\n", addr);
+            printf("0x%x);\n", log->addr);
     }
 
 }

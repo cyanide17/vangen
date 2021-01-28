@@ -380,7 +380,8 @@ static int __init init_mymod(void)
 
         enum_dev();
         suppress_drivers();
-        repro();
+        if(repro() < 0)
+                return -1;
         native_irq_enable();
 
         return 0;
