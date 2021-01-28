@@ -1,7 +1,5 @@
 # Vangen
-
 Vangen is a simple, machine-agnostic, deterministic  crash reproducing utility for [ir0nc0w](https://github.com/ir0nc0w)/[hypervisor-fuzz](https://github.com/ir0nc0w/hypervisor-fuzz) (_private_)
-
 > Vangen enables you to reproduce crash on **van**illa linux by providing kernel module **gen**erated from test case.
 
 ## Prerequisites
@@ -13,13 +11,22 @@ Vangen is a simple, machine-agnostic, deterministic  crash reproducing utility f
 ```
 $ git clone https://github.com/cyanide17/vangen.git
 $ cd vangen
-$ vi script.sh
 ```
-set `PRJ_PATH` to your hyfuzz directory. *(line 2)*
-it is set to `~/Desktop/hypervisor-fuzz` as default.
+In `script.sh`,   
 
-set `PORT` to port number you opened. *(line 3)*
+- set `PRJ_PATH` to your hyfuzz directory. *(line 2)*   
+it is set to `~/Desktop/hypervisor-fuzz` as default.   
+
+- set `PORT` to port number you opened. *(line 3)*   
 it is set to `2345` as default.
+
+From `System.map` which is located at `$PRJ_PATH/build/linux-...`,   
+find `pnp_global` and copy the address value.
+
+In `src/template.c`, set value of `list_pnp_head` to copied value.
+
+I feel sorry for asking you to do this bothersome job. :<
+This job is required to get list_head of ISA devices for ISA device driver unregistering.
 
 ## Usage
 With linux running on hypervisor such as QEMU,
@@ -37,9 +44,10 @@ When kernel module is successfully sent to linux, insert module into your linux.
 $ insmod mod.ko
 ```
 Then reproduction procedure will start right after insertion.
+
+
 ***
 ## Design
-
 Entire process can be break down into 2 statges.
 - before file transfer
 -  after file transfer
@@ -64,3 +72,9 @@ after `$ insmod mod.ko`
     - unregister all device registers (PCI & ISA)
 3. **I/O operation**
     - execute parsed C code.
+    
+    
+***
+## Future Works
+- get ISA list_head through some linux kernel API, so that no manual job is required.
+- test case minimization.
