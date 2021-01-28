@@ -95,6 +95,22 @@ DMA_blk *get_DMA_blk(unsigned int log_addr)
 }
 
 /*
+ * get struct dev with specified vendor id and device id.
+ * return NULL if not exists.
+ */
+struct dev* check_dev_list(unsigned int vendor, unsigned int device)
+{
+        struct dev *dev;
+        list_for_each_entry(dev, &dev_list_head, node) {
+                if(dev->cfg.vendor == vendor &&
+                                dev->cfg.device == device) {
+                        return dev;
+                }
+        }
+        return NULL;
+}
+
+/*
  * add dev struct to a list.
  */
 int add_dev_list(struct dev* dev,int bar_idx)
@@ -157,21 +173,6 @@ void remove_dev_list(void)
 
 }
 
-/*
- * get struct dev with specified vendor id and device id.
- * return NULL if not exists.
- */
-struct dev* check_dev_list(unsigned int vendor, unsigned int device)
-{
-        struct dev *dev;
-        list_for_each_entry(dev, &dev_list_head, node) {
-                if(dev->cfg.vendor == vendor &&
-                                dev->cfg.device == device) {
-                        return dev;
-                }
-        }
-        return NULL;
-}
 
 /*
  * print fields of all struct devs
