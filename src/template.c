@@ -52,7 +52,10 @@ struct list_head* list_pnp_head = (struct list_head*)(0xc1e46be4/* insert here *
 int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t dma_handle)
 {
         DMA_blk *new_blk = (DMA_blk *)kzalloc(sizeof(DMA_blk), GFP_KERNEL);
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
         if(!new_blk){
+                printk(KERN_INFO "###|\n");
                 printk(KERN_ERR "###| [ERR ] memory allocation failed!\n");
                 return 1;
         }
@@ -72,9 +75,11 @@ int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t dma_handle)
 void print_DMA_blks(void)
 {
         DMA_blk *blk;
-        printk(KERN_INFO "printing all dma blks\n");
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
+        printk(KERN_INFO "###| [DBG ] printing all dma blks\n");
         list_for_each_entry(blk, &DMA_blks_head, node) {
-                printk(KERN_INFO "0x%x\n",blk->log_addr);
+                printk(KERN_INFO "###| 0x%x\n", blk->log_addr);
         }
 }
 
@@ -85,11 +90,11 @@ void print_DMA_blks(void)
 DMA_blk *get_DMA_blk(unsigned int log_addr)
 {
         DMA_blk *blk;
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
         list_for_each_entry(blk, &DMA_blks_head, node) {
                 if(blk->log_addr == log_addr)
-                {
                         return blk;
-                }
         }
         return NULL;
 }
@@ -101,11 +106,11 @@ DMA_blk *get_DMA_blk(unsigned int log_addr)
 struct dev* check_dev_list(unsigned int vendor, unsigned int device)
 {
         struct dev *dev;
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
         list_for_each_entry(dev, &dev_list_head, node) {
-                if(dev->cfg.vendor == vendor &&
-                                dev->cfg.device == device) {
+                if((dev->cfg.vendor == vendor) && (dev->cfg.device == device))
                         return dev;
-                }
         }
         return NULL;
 }
@@ -116,11 +121,13 @@ struct dev* check_dev_list(unsigned int vendor, unsigned int device)
 int add_dev_list(struct dev* dev,int bar_idx)
 {
         struct dev *new_dev;
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
         if(dev->cfg.BARtype[bar_idx] == MMIO){
-                printk("###| [%s] adding (%x,%x), MMIO BAR[%d] = 0x%x with size 0x%lx\n",__FUNCTION__,
+                printk("###| [DBG ] adding (%x,%x), MMIO BAR[%d] = 0x%x with size 0x%lx\n",
                                 dev->cfg.vendor,dev->cfg.device,bar_idx,dev->cfg.BAR[bar_idx],dev->cfg.BARsize[bar_idx]);
         }else{
-                printk("###| [%s]  adding (%x,%x), PMIO BAR[%d] = 0x%x with size 0x%lx\n",__FUNCTION__,
+                printk("###| [DBG ] adding (%x,%x), PMIO BAR[%d] = 0x%x with size 0x%lx\n",
                                 dev->cfg.vendor,dev->cfg.device,bar_idx,dev->cfg.BAR[bar_idx],dev->cfg.BARsize[bar_idx]);
         }
 
@@ -158,12 +165,14 @@ void remove_dev_list(void)
         struct list_head *node;
         struct list_head *nnode;
         int i;
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
         list_for_each_safe(node, nnode, &dev_list_head) {
                 dev = list_entry(node,struct dev,node);
-                printk(KERN_INFO "###| [%s] removing (%x,%x)\n",__FUNCTION__,dev->cfg.vendor,dev->cfg.device);
+                printk(KERN_INFO "###| [INFO] removing (%x,%x)\n", dev->cfg.vendor, dev->cfg.device);
                 for(i=0;i<6;i++){
                         if((dev->cfg.BARisvalid[i]==true)&&(dev->cfg.BARtype[i]==MMIO)){
-                                printk(KERN_INFO "###| [%s] unmapping BAR[%d]:%d\n",__FUNCTION__,i,dev->cfg.BAR[i]);
+                                printk(KERN_INFO "###| [INFO] unmapping BAR[%d]:%d\n", i, dev->cfg.BAR[i]);
                                 iounmap((void __iomem*)dev->cfg.BAR[i]);
                         }
                 }
@@ -181,19 +190,21 @@ void print_dev_list(void)
 {
         struct dev *dev;
         int i;
-        printk(KERN_INFO "printing all dev\n");
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
+        printk(KERN_INFO "###| [DBG ] printing all dev\n");
         list_for_each_entry(dev, &dev_list_head, node) {
-                printk(KERN_INFO "== (%x:%x) ==\n",dev->cfg.vendor,dev->cfg.device);
+                printk(KERN_INFO "###| == (%x:%x) ==\n",dev->cfg.vendor,dev->cfg.device);
                 for(i=0;i<6;i++){
                         if(dev->cfg.BARisvalid[i]==true){
-                                printk(KERN_INFO "| BAR[%d]=%x\n",i,dev->cfg.BAR[i]);
+                                printk(KERN_INFO "###| | BAR[%d]=%x\n",i,dev->cfg.BAR[i]);
                                 if(dev->cfg.BARtype[i]==MMIO){
-                                        printk(KERN_INFO "| type: MMIO\n");
+                                        printk(KERN_INFO "###| | type: MMIO\n");
                                 }else{
-                                        printk(KERN_INFO "| type: PMIO\n");
+                                        printk(KERN_INFO "###| | type: PMIO\n");
                                 }
-                                printk(KERN_INFO "| BARsize[%d]=%lx\n",i,dev->cfg.BARsize[i]);
-                                printk(KERN_INFO "|-\n");
+                                printk(KERN_INFO "###| | BARsize[%d]=%lx\n",i,dev->cfg.BARsize[i]);
+                                printk(KERN_INFO "###| |-\n");
                         }
                 }
         }
@@ -210,10 +221,13 @@ int enum_dev(void)
         unsigned int tmpval;
         struct dev *dev;
 
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
+
         /* struct dev initialization */
         dev = (struct dev*)kzalloc(sizeof(struct dev), GFP_KERNEL);
         if(!dev){
-                printk(KERN_ERR "memory allocation failed!\n");
+                printk(KERN_ERR "###| [%s] [ERR] memory allocation failed!\n", __FUNCTION__);
                 return 1;
         }
 
@@ -277,14 +291,18 @@ void print_pci_config(int bus,int dev,int func)
         int i,j,val;
         unsigned int regi;
 
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
+
         b = bus;
         d = dev;
         f = func;
 
         pcicfg_idx = 0x80000000+(b*0x100000+d*0x800+f*0x100);
 
-        printk("| ============\n");
-        printk("| %d:%d:%d \n",b,d,f);
+        printk(KERN_INFO "###| [DBG ] printing PCI config table\n");
+        printk("============\n");
+        printk("%d:%d:%d \n",b,d,f);
 
         for(i=0;i<64;i+=4){
                 outl(pcicfg_idx+i,0xCF8);
@@ -313,6 +331,10 @@ void print_pci_config(int bus,int dev,int func)
  */
 struct dev* load_bar(unsigned int vendor, unsigned int device){
         struct dev *dev = check_dev_list(vendor,device);
+
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
+
         if(dev==NULL){
                 printk(KERN_ERR "[ERR ] load_bar tried for not existing device\n");
         }
@@ -332,12 +354,15 @@ int repro(void)
         struct pci_dev *pdev;
         DMA_blk *blk;
 
-        printk(KERN_INFO "[%s] REPRO START\n",__FUNCTION__);
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
+
+        printk(KERN_INFO "[INFO] REPRO START\n");
 
         // @
 
 
-        printk(KERN_INFO "[%s] REPRO END\n",__FUNCTION__);
+        printk(KERN_INFO "[INFO] REPRO END\n");
         return 0;
 }
 
@@ -349,69 +374,73 @@ int repro(void)
  */
 int suppress_drivers(void)
 {
-        struct pci_dev *pdev;
         struct dev *dev;
         unsigned int vendor;
         unsigned int device;
+        struct pci_dev *pdev;
+        struct pnp_dev *pnpdev;
+
+        printk(KERN_INFO "###|\n");
+        printk(KERN_INFO "###| [INFO] FUNCTION: %s\n",__FUNCTION__);
+
         /* 1. disable hardware interupts from all devices  */
-        printk(KERN_INFO "###| [%s] irq disable\n",__FUNCTION__);
         native_irq_disable();
+        printk(KERN_INFO "###| [INFO] IRQ disabled\n");
 
         /* 2. unregister all device drivers  */
-        /* (only pci_devices for now) */
+        /* PCI devices */
+        printk(KERN_INFO "###| \n");
+        printk(KERN_INFO "###| [INFO] unregistering PCI devices...\n");
         list_for_each_entry(dev, &dev_list_head, node) {
                 vendor = dev->cfg.vendor;
                 device = dev->cfg.device;
-                printk(KERN_INFO "###| [%s] device [%x:%x]\n",__FUNCTION__,vendor,device);
+                printk(KERN_INFO "###| [INFO] device [%x:%x]\n", vendor, device);
                 pdev = pci_get_device(vendor,device,NULL);
                 if(pdev->driver){
-                        printk(KERN_INFO "###| [%s] yes driver exists! named..%s\n",__FUNCTION__,pdev->driver->name);
+                        printk(KERN_INFO "###| [INFO] driver name : %s\n", pdev->driver->name);
                         if((device==0x10d3)||(device==0x100e)){
-                                printk(KERN_INFO "###| [%s] let network go\n",__FUNCTION__);
+                                printk(KERN_INFO "###| [INFO] let network go\n");
                         }else if(device==0x7010){
-                                printk(KERN_INFO "###| [%s] let hdd go\n",__FUNCTION__);
+                                printk(KERN_INFO "###| [INFO] let hdd go\n");
                         }else{
                                 pci_unregister_driver(pdev->driver);
-                                printk(KERN_INFO "###| [%s] but now it's gone uwu\n",__FUNCTION__);
+                                printk(KERN_INFO "###| [INFO] unregistered!\n");
                         }
                 }else{
-                        printk(KERN_INFO "###| [%s] device with no driver..!\n",__FUNCTION__);
+                        printk(KERN_INFO "###| [INFO] device with no driver..!\n");
                 }
         }
 
 
-        /* isa devices */
-        /*
-        struct pnp_dev *pnpdev;
+        /* ISA devices */
+        printk(KERN_INFO "###| \n");
+        printk(KERN_INFO "###| [INFO] unregistering ISA devices...\n");
         list_for_each_entry(pnpdev, list_pnp_head, global_list)
         {
-
                 if(pnpdev!=NULL){
-                        printk(KERN_INFO "###| [%s]: PNP_NAME:[%s]\n",__FUNCTION__,pnpdev->name);
+                        printk(KERN_INFO "###| [INFO] PNP_NAME:[%s]\n", pnpdev->name);
                         if(pnpdev->driver!=NULL){
-                                printk(KERN_INFO "###| [%s]: PNP_DRIVER_NAME:[%s]\n",__FUNCTION__,pnpdev->driver->name);
+                                printk(KERN_INFO "###| [INFO] PNP_DRIVER_NAME:[%s]\n", pnpdev->driver->name);
                                 pnp_unregister_driver(pnpdev->driver);
-                                printk(KERN_INFO "###| [%s]: unregistered!\n",__FUNCTION__);
+                                printk(KERN_INFO "###| [INFO] unregistered!\n");
                         }else{
-                                printk(KERN_INFO "###| [%s]: no PNP driver\n",__FUNCTION__);
+                                printk(KERN_INFO "###| [INFO] no PNP driver\n");
                         }
                 }else{
-                        printk(KERN_INFO "###| [%s]: no PNP\n",__FUNCTION__);
+                        printk(KERN_INFO "###| [INFO] no PNP\n");
                 }
         }
-        */
 
         return 0;
 }
 
 static int __init init_mymod(void)
 {
-        printk(KERN_ALERT "###| [%s] vangen_mod inserted!\n",__FUNCTION__);
+        printk(KERN_ALERT "###| [ALRT] vangen_mod inserted!\n");
 
         enum_dev();
         suppress_drivers();
-        if(repro() < 0)
-                return -1;
+        repro();
         native_irq_enable();
 
         return 0;
@@ -420,7 +449,7 @@ static int __init init_mymod(void)
 static void __exit exit_mymod(void)
 {
         remove_dev_list();
-        printk(KERN_ALERT "###| [%s] vangen_mod exited!\n",__FUNCTION__);
+        printk(KERN_ALERT "###| [ALRT] vangen_mod exited!\n");
 }
 
 module_init(init_mymod);
