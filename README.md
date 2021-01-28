@@ -24,11 +24,11 @@ it is set to `2345` as default.
 ### Usage
 First run linux on hypervisor such as qemu.
 ```
-$./script.sh 'relative-path-to-log-file'"
+$ ./script.sh 'relative-path-to-log-file'"
 ```
 for basic usage.
 ```
-$./script.sh 'relative-path-to-log-file' -dbg"
+$ ./script.sh 'relative-path-to-log-file' -dbg"
 ```
 for debugging.
 this leaves debris from intermediate processes.
