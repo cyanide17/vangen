@@ -27,7 +27,7 @@ struct dev_cfg{
         int                 BAR[6];
         int                 BARtype[6]; // 0:MMIO 1:PMIO
         unsigned long       BARsize[6];
-        int                 BAR_isvalid[6];
+        int                 BARisvalid[6];
 };
 
 struct dev{
@@ -41,6 +41,9 @@ typedef struct _DMA_block{
         dma_addr_t dma_handle;
         struct list_head node;
 }DMA_blk;
+
+// search "pnp_global" at System.map and insert the value
+struct list_head* list_pnp_head = (struct list_head*)(0xc1e46be4);
 
 int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t dma_handle)
 {
@@ -100,7 +103,7 @@ void print_dev_list(void)
         list_for_each_entry(dev, &dev_list_head, node) {
                 printk(KERN_INFO "== (%x:%x) ==\n",dev->cfg.vendor,dev->cfg.device);
                 for(i=0;i<6;i++){
-                        if(dev->cfg.BAR_isvalid[i]==true){
+                        if(dev->cfg.BARisvalid[i]==true){
                                 printk(KERN_INFO "| BAR[%d]=%x\n",i,dev->cfg.BAR[i]);
                                 if(dev->cfg.BARtype[i]==MMIO){
                                         printk(KERN_INFO "| type:MMIO\n");
@@ -146,7 +149,7 @@ int add_dev_list(struct dev* dev,int bar_idx)
         }else{
                 new_dev->cfg.BARtype[bar_idx] = PMIO;
         }
-        new_dev->cfg.BAR_isvalid[bar_idx] = true;
+        new_dev->cfg.BARisvalid[bar_idx] = true;
         return 0;
 
 }
@@ -161,7 +164,7 @@ void remove_dev_list(void)
                 dev = list_entry(node,struct dev,node);
                 printk(KERN_INFO "###| [%s] removing (%x,%x)\n",__FUNCTION__,dev->cfg.vendor,dev->cfg.device);
                 for(i=0;i<6;i++){
-                        if((dev->cfg.BAR_isvalid[i]==true)&&(dev->cfg.BARtype[i]==MMIO)){
+                        if((dev->cfg.BARisvalid[i]==true)&&(dev->cfg.BARtype[i]==MMIO)){
                                 printk(KERN_INFO "###| [%s] unmapping BAR[%d]:%d\n",__FUNCTION__,i,dev->cfg.BAR[i]);
                                 iounmap((void __iomem*)dev->cfg.BAR[i]);
                         }
@@ -307,9 +310,6 @@ int repro(void)
         return 0;
 }
 
-// [WHY] linux kernel variable.
-// search "pnp_global" at System.map and insert the value
-struct list_head* list_pnp_head = (struct list_head*)(0xc1e46be4);
 
 
 /*
@@ -376,7 +376,7 @@ int suppress_drivers(void)
 
 static int __init init_mymod(void)
 {
-        printk(KERN_ALERT "###| [%s] mymod inserted!\n",__FUNCTION__);
+        printk(KERN_ALERT "###| [%s] vangen_mod inserted!\n",__FUNCTION__);
 
         enum_dev();
         suppress_drivers();
@@ -389,7 +389,7 @@ static int __init init_mymod(void)
 static void __exit exit_mymod(void)
 {
         remove_dev_list();
-        printk(KERN_ALERT "###| [%s] mymod exited!\n",__FUNCTION__);
+        printk(KERN_ALERT "###| [%s] vangen_mod exited!\n",__FUNCTION__);
 }
 
 module_init(init_mymod);
