@@ -29,7 +29,7 @@ typedef struct _DMA_block{
     uint32_t base;                   /* base address of allocated page */
     uint32_t vendor;                 /* vendor id for device identification */
     uint32_t device;                 /* device id for device identification */
-	LIST_ENTRY(_DMA_block) ptr;      /* list node */
+    LIST_ENTRY(_DMA_block) ptr;      /* list node */
 }DMA_blk;
 
 DMA_blk *create_DMA_blk(uint32_t base, uint32_t vendor, uint32_t device);

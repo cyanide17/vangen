@@ -22,29 +22,33 @@ static LIST_HEAD(dev_list_head);
 static LIST_HEAD(DMA_blks_head);
 
 struct dev_cfg{
-        unsigned int        vendor;
-        unsigned int        device;
-        int                 BAR[6];
-        int                 BARtype[6]; // 0:MMIO 1:PMIO
-        unsigned long       BARsize[6];
-        int                 BARisvalid[6];
+        unsigned int        vendor;           /* vendor id */
+        unsigned int        device;           /* device id */
+        int                 BAR[6];           /* Base Address Registers */
+        int                 BARtype[6];       /* type of address; 0: MMIO 1: PMIO */
+        unsigned long       BARsize[6];       /* size of address space */
+        int                 BARisvalid[6];    /* whether the value in BAR is valid or not */
 };
-
 struct dev{
-        struct dev_cfg      cfg;
-        struct list_head    node;
+        struct dev_cfg      cfg;              /* configuration info about device */
+        struct list_head    node;             /* list node */
 };
 
 typedef struct _DMA_block{
-        void *cpu_addr;
-        unsigned int log_addr;
-        dma_addr_t dma_handle;
-        struct list_head node;
+        void                *cpu_addr;        /* virtual base address of allocated DMA zone */
+        unsigned int        log_addr;         /* target address recorded in log */
+        dma_addr_t          dma_handle;       /* bus base address of allocated DMA zone */
+        struct              list_head node;   /* list node */
 }DMA_blk;
 
-// search "pnp_global" at System.map and insert the value
-struct list_head* list_pnp_head = (struct list_head*)(0xc1e46be4);
 
+/* search "pnp_global" at System.map and insert the value */
+struct list_head* list_pnp_head = (struct list_head*)(0xc1e46be4/* insert here */);
+
+
+/*
+ * add DMA_blk struct to a list.
+ */
 int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t dma_handle)
 {
         DMA_blk *new_blk = (DMA_blk *)kzalloc(sizeof(DMA_blk), GFP_KERNEL);
@@ -62,6 +66,9 @@ int add_DMA_blk(void *cpu_addr, unsigned int log_addr, dma_addr_t dma_handle)
         return 0;
 }
 
+/*
+ * print log addr of all DMA_blk structs.
+ */
 void print_DMA_blks(void)
 {
         DMA_blk *blk;
@@ -71,6 +78,10 @@ void print_DMA_blks(void)
         }
 }
 
+/*
+ * get DMA_blk with specified log_addr from the list.
+ * return NULL if not exists.
+ */
 DMA_blk *get_DMA_blk(unsigned int log_addr)
 {
         DMA_blk *blk;
@@ -83,40 +94,9 @@ DMA_blk *get_DMA_blk(unsigned int log_addr)
         return NULL;
 }
 
-struct dev* check_dev_list(unsigned int vendor, unsigned int device)
-{
-        struct dev *dev;
-        list_for_each_entry(dev, &dev_list_head, node) {
-                if(dev->cfg.vendor == vendor &&
-                                dev->cfg.device == device) {
-                        return dev;
-                }
-        }
-        return NULL;
-}
-
-void print_dev_list(void)
-{
-        struct dev *dev;
-        int i;
-        printk(KERN_INFO "printing all dev\n");
-        list_for_each_entry(dev, &dev_list_head, node) {
-                printk(KERN_INFO "== (%x:%x) ==\n",dev->cfg.vendor,dev->cfg.device);
-                for(i=0;i<6;i++){
-                        if(dev->cfg.BARisvalid[i]==true){
-                                printk(KERN_INFO "| BAR[%d]=%x\n",i,dev->cfg.BAR[i]);
-                                if(dev->cfg.BARtype[i]==MMIO){
-                                        printk(KERN_INFO "| type:MMIO\n");
-                                }else{
-                                        printk(KERN_INFO "| type:PMIO\n");
-                                }
-                                printk(KERN_INFO "| BARsize[%d]=%lx\n",i,dev->cfg.BARsize[i]);
-                                printk(KERN_INFO "|-\n");
-                        }
-                }
-        }
-}
-
+/*
+ * add dev struct to a list.
+ */
 int add_dev_list(struct dev* dev,int bar_idx)
 {
         struct dev *new_dev;
@@ -151,9 +131,11 @@ int add_dev_list(struct dev* dev,int bar_idx)
         }
         new_dev->cfg.BARisvalid[bar_idx] = true;
         return 0;
-
 }
 
+/*
+ * remove all dev structs and free the memories
+ */
 void remove_dev_list(void)
 {
         struct dev *dev;
@@ -175,22 +157,66 @@ void remove_dev_list(void)
 
 }
 
+/*
+ * get struct dev with specified vendor id and device id.
+ * return NULL if not exists.
+ */
+struct dev* check_dev_list(unsigned int vendor, unsigned int device)
+{
+        struct dev *dev;
+        list_for_each_entry(dev, &dev_list_head, node) {
+                if(dev->cfg.vendor == vendor &&
+                                dev->cfg.device == device) {
+                        return dev;
+                }
+        }
+        return NULL;
+}
+
+/*
+ * print fields of all struct devs
+ */
+void print_dev_list(void)
+{
+        struct dev *dev;
+        int i;
+        printk(KERN_INFO "printing all dev\n");
+        list_for_each_entry(dev, &dev_list_head, node) {
+                printk(KERN_INFO "== (%x:%x) ==\n",dev->cfg.vendor,dev->cfg.device);
+                for(i=0;i<6;i++){
+                        if(dev->cfg.BARisvalid[i]==true){
+                                printk(KERN_INFO "| BAR[%d]=%x\n",i,dev->cfg.BAR[i]);
+                                if(dev->cfg.BARtype[i]==MMIO){
+                                        printk(KERN_INFO "| type: MMIO\n");
+                                }else{
+                                        printk(KERN_INFO "| type: PMIO\n");
+                                }
+                                printk(KERN_INFO "| BARsize[%d]=%lx\n",i,dev->cfg.BARsize[i]);
+                                printk(KERN_INFO "|-\n");
+                        }
+                }
+        }
+}
+
+/*
+ * probe PCI configuration spaces and read their address spaces' base & size from BAR.
+ */
 int enum_dev(void)
 {
         unsigned int pcicfg_idx;
-        int b,d,f; // bus, device, function
+        int b,d,f; /* bus, device, function */
         int bar_idx;
         unsigned int tmpval;
         struct dev *dev;
 
-        // struct dev initialization
+        /* struct dev initialization */
         dev = (struct dev*)kzalloc(sizeof(struct dev), GFP_KERNEL);
         if(!dev){
                 printk(KERN_ERR "memory allocation failed!\n");
                 return 1;
         }
 
-        // scan all pci configuration space
+        /* scan all pci configuration space */
         for(b=0;b<256;b++){
                 for(d=0;d<32;d++){
                         for(f=0;f<8;f++){
@@ -205,19 +231,19 @@ int enum_dev(void)
                                 outl(pcicfg_idx+0x0C,0xCf8);
                                 if(((inl(0xCFC)>>16)&0xFF)==0x00){ /* check header type (endpoint device only) */
 
-                                        // reading BARs
+                                        /* reading BARs */
                                         for(bar_idx=0;bar_idx<6;bar_idx++){
                                                 outl(pcicfg_idx+0x10+4*bar_idx,0xCF8);
                                                 if(inl(0xCFC)!=0){ /* if valid BAR */
                                                         tmpval = inl(0xCFC);
 
-                                                        // 1. address space size
+                                                        /* 1. address space size */
                                                         outl(~0x0,0xCFC); /* write 0xFs*/
                                                         dev->cfg.BARsize[bar_idx] = inl(0xCFC);
                                                         outl(tmpval,0xCFC); /* restore original BAR */
                                                         dev->cfg.BARsize[bar_idx] = (~(dev->cfg.BARsize[bar_idx]&(~0xF)))+1; /* calculating size */
 
-                                                        // 2. base address & type
+                                                        /* 2. base address & type */
                                                         if((tmpval&0x1)==0){
                                                                 dev->cfg.BAR[bar_idx] = tmpval&(~0xF);
                                                                 dev->cfg.BARtype[bar_idx] = MMIO;
@@ -239,6 +265,10 @@ int enum_dev(void)
         return 0;
 }
 
+
+/*
+ * print PCI configuration table with specified b, d, f (bus, device, function) as index.
+ */
 void print_pci_config(int bus,int dev,int func)
 {
         unsigned int pcicfg_idx;
@@ -276,13 +306,10 @@ void print_pci_config(int bus,int dev,int func)
 
 }
 
-void print_IF(void)
-{
-        int IF = -1;
-        IF = (0x200&native_save_fl())>>9;
-        printk("###| [%s] IF:%d\n",__FUNCTION__,IF);
-}
-
+/*
+ * return pointer to struct dev that have specified vendor id & device id
+ * return NULL if not exists
+ */
 struct dev* load_bar(unsigned int vendor, unsigned int device){
         struct dev *dev = check_dev_list(vendor,device);
         if(dev==NULL){
@@ -291,6 +318,9 @@ struct dev* load_bar(unsigned int vendor, unsigned int device){
         return dev;
 }
 
+/*
+ * function where parsed I/O operations will be merged into.
+ */
 int repro(void)
 {
         void __iomem* bar_addr[6];
@@ -313,8 +343,8 @@ int repro(void)
 
 
 /*
-** 1. disable hardware interupts from all devices
-** 2. unregister all device drivers
+ * disable hardware interupts from all devices.
+ * unregister all device drivers.
  */
 int suppress_drivers(void)
 {
@@ -326,7 +356,6 @@ int suppress_drivers(void)
         printk(KERN_INFO "###| [%s] irq disable\n",__FUNCTION__);
         native_irq_disable();
 
-        //printk(KERN_INFO "###| [INFO] driver detach\n");
         /* 2. unregister all device drivers  */
         /* (only pci_devices for now) */
         list_for_each_entry(dev, &dev_list_head, node) {
@@ -351,7 +380,7 @@ int suppress_drivers(void)
 
 
         /* isa devices */
-        /*
+        /* there is some buggy 
         struct pnp_dev *pnpdev;
         list_for_each_entry(pnpdev, list_pnp_head, global_list)
         {
@@ -381,7 +410,7 @@ static int __init init_mymod(void)
         enum_dev();
         suppress_drivers();
         if(repro() < 0)
-                return -1;
+          return -1;
         native_irq_enable();
 
         return 0;
