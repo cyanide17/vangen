@@ -1,8 +1,8 @@
 #!/bin/bash
-
-PWD=`pwd -P`
 PRJ_PATH="~/Desktop/hypervisor-fuzz"
+PORT=2345
 SRC_PATH="$PRJ_PATH/src"
+PWD=`pwd -P`
 LOG=$PWD/$1
 ARGERR=0
 
@@ -146,7 +146,7 @@ if [ -z $2 ];then
   rm dbg -rf
 fi
 
-scp -P2345 -i $SRC_PATH/image/stretch.id_rsa mod.ko root@localhost:~/ > /dev/null
+scp -P$PORT -i $SRC_PATH/image/stretch.id_rsa mod.ko root@localhost:~/ > /dev/null
 if [ -z $2 ];then
   rm mod.ko
 fi
