@@ -37,7 +37,8 @@ Or you can try this for debugging.
 ```
 $ ./script.sh 'relative-path-to-log-file' -dbg"
 ```
-This leaves debris from intermediate processes.
+This leaves debris from intermediate processes.   
+   
 When kernel module is successfully sent to linux, insert module into your linux.
 ```
 $ insmod mod.ko
