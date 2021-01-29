@@ -31,12 +31,10 @@ find `pnp_global` and copy the address value.
 With linux running on hypervisor such as QEMU,
 You can generate kernel module from log file and send it to linux with this command.
 ```
-# in vangen
 $ ./script.sh 'relative-path-to-log-file'"
 ```
 Or you can try this for debugging.
 ```
-# in vangen
 $ ./script.sh 'relative-path-to-log-file' -dbg"
 ```
 This leaves debris from intermediate processes.   
