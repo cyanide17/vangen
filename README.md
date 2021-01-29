@@ -1,5 +1,5 @@
 # Vangen
-Vangen is a simple, machine-agnostic, deterministic  crash reproducing utility for [ir0nc0w](https://github.com/ir0nc0w)/[hypervisor-fuzz](https://github.com/ir0nc0w/hypervisor-fuzz) (_currently private_)
+Vangen is a simple, machine-agnostic, deterministic  crash reproducing utility for [ir0nc0w](https://github.com/ir0nc0w)/[hypervisor-fuzz](https://github.com/ir0nc0w/hypervisor-fuzz) (_currently private_).
 > Vangen enables you to reproduce crash on **van**illa linux by providing kernel module **gen**erated from test case.
 
 ## Prerequisites
@@ -24,7 +24,7 @@ find `pnp_global` and copy the address value.
 
 - In `src/template.c`, set value of `list_pnp_head` to copied value.
 - This job is required to get list_head of ISA devices for ISA device driver unregistering.
-    - I feel sorry for asking you to do this bothersome job. :<
+    - I feel sorry for asking you to do this bothersome job :<
 
 
 ## Usage
@@ -51,7 +51,7 @@ Then reproduction procedure will start right after insertion.
 ## Design Overview
 Entire process can be break down into 2 statges.
 - before file transfer
--  after file transfer
+- after file transfer
 
 ### before file transfer
 after `$ ./script ...`
