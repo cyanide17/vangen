@@ -31,16 +31,19 @@ find `pnp_global` and copy the address value.
 With linux running on hypervisor such as QEMU,
 You can generate kernel module from log file and send it to linux with this command.
 ```
+# in vangen
 $ ./script.sh 'relative-path-to-log-file'"
 ```
 Or you can try this for debugging.
 ```
+# in vangen
 $ ./script.sh 'relative-path-to-log-file' -dbg"
 ```
 This leaves debris from intermediate processes.   
    
 When kernel module is successfully sent to linux, insert module into your linux.
 ```
+# in linux virtual machine shell
 $ insmod mod.ko
 ```
 Then reproduction procedure will start right after insertion.
