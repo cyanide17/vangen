@@ -389,7 +389,7 @@ int suppress_drivers(void)
 
         /* 2. unregister all device drivers  */
         /* PCI devices */
-        printk(KERN_INFO "###| \n");
+        printk(KERN_INFO "###| -\n");
         printk(KERN_INFO "###| [INFO] unregistering PCI devices...\n");
         list_for_each_entry(dev, &dev_list_head, node) {
                 vendor = dev->cfg.vendor;
@@ -399,21 +399,21 @@ int suppress_drivers(void)
                 if(pdev->driver){
                         printk(KERN_INFO "###| [INFO] driver name : %s\n", pdev->driver->name);
                         if((device==0x10d3)||(device==0x100e)){
-                                printk(KERN_INFO "###| [INFO] let network go\n");
+                                printk(KERN_INFO "###| [INFO] => let network go\n");
                         }else if(device==0x7010){
-                                printk(KERN_INFO "###| [INFO] let hdd go\n");
+                                printk(KERN_INFO "###| [INFO] => let hdd go\n");
                         }else{
                                 pci_unregister_driver(pdev->driver);
-                                printk(KERN_INFO "###| [INFO] unregistered!\n");
+                                printk(KERN_INFO "###| [INFO] => unregistered!\n");
                         }
                 }else{
-                        printk(KERN_INFO "###| [INFO] device with no driver..!\n");
+                        printk(KERN_INFO "###| [INFO] => device with no driver..!\n");
                 }
         }
 
 
         /* ISA devices */
-        printk(KERN_INFO "###| \n");
+        printk(KERN_INFO "###| -\n");
         printk(KERN_INFO "###| [INFO] unregistering ISA devices...\n");
         list_for_each_entry(pnpdev, list_pnp_head, global_list)
         {
@@ -422,12 +422,12 @@ int suppress_drivers(void)
                         if(pnpdev->driver!=NULL){
                                 printk(KERN_INFO "###| [INFO] PNP_DRIVER_NAME:[%s]\n", pnpdev->driver->name);
                                 pnp_unregister_driver(pnpdev->driver);
-                                printk(KERN_INFO "###| [INFO] unregistered!\n");
+                                printk(KERN_INFO "###| [INFO] => unregistered!\n");
                         }else{
-                                printk(KERN_INFO "###| [INFO] no PNP driver\n");
+                                printk(KERN_INFO "###| [INFO] => no PNP driver\n");
                         }
                 }else{
-                        printk(KERN_INFO "###| [INFO] no PNP\n");
+                        printk(KERN_INFO "###| [INFO] => no PNP\n");
                 }
         }
 
