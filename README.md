@@ -31,7 +31,7 @@ find `pnp_global` and copy the address value.
 
 ## Usage
 With linux running on hypervisor such as QEMU,
-You can generate kernel module from log file and send it to linux with this command.
+you can generate kernel module from log file and send it to linux with this command.
 ```
 $ ./script.sh 'relative-path-to-log-file'"
 ```
@@ -59,7 +59,7 @@ Entire process can be break down into 2 statges.
 after `$ ./script ...`
 1. **parsing**
     - parse test case log file into corresponding C code.
-    - Some proper preprocessing and postprocessing codes can be included. *(ex.allocating & freeing DMA zone)*
+    - some proper preprocessing and postprocessing codes can be included. *(ex.allocating & freeing DMA zone)*
 2. **merging**
     - merge C code with provided kernel module template.
 3. **compiling**
