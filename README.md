@@ -22,8 +22,10 @@ it is set to `2345` as default.
 2. From `System.map` which is located at `$PRJ_PATH/build/linux-...`,   
 find `pnp_global` and copy the address value.
 
-- In `src/template.c`, set value of `list_pnp_head` to copied value.
-- This job is required to get list_head of ISA devices for ISA device driver unregistering.
+- in `src/template.c`, set value of `list_pnp_head` to copied value.
+- note that kernel address space layout randomization (kaslr) must be off.
+    - ex) for QEMU, give `nokaslr` to kernel parameter.
+- this job is required to get list_head of ISA devices for ISA device driver unregistering.
     - I feel sorry for asking you to do this bothersome job :<
 
 
