@@ -11,7 +11,7 @@ Vangen is a simple, machine-agnostic, deterministic  crash reproducing utility f
 $ git clone https://github.com/cyanide17/vangen.git
 $ cd vangen
 ```
-In `script.sh`,   
+1. In `script.sh`,   
 
 - set `PRJ_PATH` to your hyfuzz directory. *(line 2)*   
 it is set to `~/Desktop/hypervisor-fuzz` as default.   
@@ -19,13 +19,13 @@ it is set to `~/Desktop/hypervisor-fuzz` as default.
 - set `PORT` to port number you opened. *(line 3)*   
 it is set to `2345` as default.
 
-From `System.map` which is located at `$PRJ_PATH/build/linux-...`,   
+2. From `System.map` which is located at `$PRJ_PATH/build/linux-...`,   
 find `pnp_global` and copy the address value.
 
-In `src/template.c`, set value of `list_pnp_head` to copied value.
+- In `src/template.c`, set value of `list_pnp_head` to copied value.
+- This job is required to get list_head of ISA devices for ISA device driver unregistering.
+    - I feel sorry for asking you to do this bothersome job. :<
 
-I feel sorry for asking you to do this bothersome job. :<
-This job is required to get list_head of ISA devices for ISA device driver unregistering.
 
 ## Usage
 With linux running on hypervisor such as QEMU,
