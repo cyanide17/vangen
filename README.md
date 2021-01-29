@@ -72,7 +72,9 @@ after `$ insmod mod.ko`
     - disable hardware interrupts from any devices
     - unregister all device registers (PCI & ISA)
 3. **I/O operation**
+    - if DMA operations exist, allocate all memory required first.
     - execute parsed C code.
+    - if allocation occurred, free them.
     
     
 ***
